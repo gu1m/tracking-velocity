@@ -45,6 +45,7 @@ class AuthService extends ChangeNotifier {
   Future<AppUser> _buildAppUser(User firebaseUser) async {
     SubscriptionStatus subscription = SubscriptionStatus.trial;
     DateTime? renewsAt;
+    String? preapprovalId;
 
     try {
       final token = await firebaseUser.getIdToken();
@@ -60,6 +61,7 @@ class AuthService extends ChangeNotifier {
         subscription = _parseStatus(data['status'] as String?);
         final renewsRaw = data['renewsAt'] as String?;
         if (renewsRaw != null) renewsAt = DateTime.parse(renewsRaw);
+        preapprovalId = data['preapprovalId'] as String?;
       }
     } catch (e) {
       debugPrint('[AuthService] Não foi possível buscar assinatura: $e');
@@ -74,6 +76,7 @@ class AuthService extends ChangeNotifier {
       photoUrl: firebaseUser.photoURL,
       subscription: subscription,
       subscriptionRenewsAt: renewsAt,
+      preapprovalId: preapprovalId,
     );
   }
 
@@ -199,6 +202,36 @@ class AuthService extends ChangeNotifier {
       final cred = await _auth.signInWithCredential(credential);
       return _buildAppUser(cred.user!);
     });
+  }
+
+  // ── Exclusão de conta (LGPD Art. 18) ─────────────────────────────────────
+
+  /// Exclui a conta do usuário: dados no Supabase + registro no Firebase Auth.
+  /// Após o sucesso, o usuário é desconectado localmente.
+  Future<void> deleteAccount() async {
+    final firebaseUser = _auth.currentUser;
+    if (firebaseUser == null) return;
+
+    final token = await firebaseUser.getIdToken();
+
+    final resp = await http
+        .delete(
+          Uri.parse('${ApiConfig.baseUrl}/users/me'),
+          headers: {'Authorization': 'Bearer $token'},
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (resp.statusCode != 200) {
+      final msg = jsonDecode(resp.body)['error'] ?? 'Erro ao excluir conta.';
+      throw Exception(msg);
+    }
+
+    _currentUser = null;
+    await Future.wait([
+      _auth.signOut(),
+      _googleSignIn.signOut(),
+    ]);
+    notifyListeners();
   }
 
   // ── Logout ────────────────────────────────────────────────────────────────
