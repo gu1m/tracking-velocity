@@ -1,17 +1,21 @@
-# Use Node.js official image
-FROM node:18-alpine
+# Use Node.js 20 (better performance, Supabase recommended)
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Copy functions directory
-COPY functions /app
+COPY functions/ .
 
 # Install dependencies
-RUN npm install
+RUN npm ci --only=production
 
 # Expose port
 EXPOSE 3000
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
 # Start server
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
