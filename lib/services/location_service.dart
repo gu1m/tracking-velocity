@@ -49,6 +49,7 @@ class LocationService extends ChangeNotifier {
   double _currentLon = 0;
   Duration _todayActiveTime = Duration.zero;
   double _todayDistanceKm = 0;
+  double _todayMaxSpeedKmh = 0;
 
   bool get isServiceRunning => _isServiceRunning;
   bool get isTrackingActive => _isTrackingActive;
@@ -61,6 +62,11 @@ class LocationService extends ChangeNotifier {
 
   Duration get todayActiveTime => _todayActiveTime;
   double get todayDistanceKm => _todayDistanceKm;
+  double get todayMaxSpeedKmh => _todayMaxSpeedKmh;
+  double get todayAvgSpeedKmh {
+    final hours = _todayActiveTime.inSeconds / 3600.0;
+    return hours > 0 ? _todayDistanceKm / hours : 0;
+  }
 
   // ── Estado da viagem ativa ───────────────────────────────────────────────
   String? _activeTripId;
@@ -249,6 +255,7 @@ class LocationService extends ChangeNotifier {
 
     _todayActiveTime += minuteWindow;
     _todayDistanceKm += _minuteDistanceKm;
+    if (_minuteMaxSpeed > _todayMaxSpeedKmh) _todayMaxSpeedKmh = _minuteMaxSpeed;
 
     // Reinicia o buffer do minuto.
     _minuteSpeeds.clear();

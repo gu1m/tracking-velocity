@@ -126,23 +126,23 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                const Row(
+                Row(
                   children: [
                     Expanded(
                       child: _MetricCard(
                         icon: Icons.speed_rounded,
                         color: AppColors.success,
                         label: 'Vel. média',
-                        value: '54 km/h',
+                        value: '${loc.todayAvgSpeedKmh.toStringAsFixed(0)} km/h',
                       ),
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: _MetricCard(
                         icon: Icons.flag_rounded,
                         color: AppColors.danger,
                         label: 'Pico',
-                        value: '92 km/h',
+                        value: '${loc.todayMaxSpeedKmh.toStringAsFixed(0)} km/h',
                       ),
                     ),
                   ],

@@ -106,6 +106,18 @@ class StorageService extends ChangeNotifier {
     return rows.map(_rowToRecord).toList();
   }
 
+  /// Remove todas as viagens e registros de velocidade do usuário local.
+  Future<void> clearAllData() async {
+    if (_currentUser == null) return;
+    final trips = await _db.getTripsForUser(_currentUser!.uid, limit: 9999);
+    for (final t in trips) {
+      await _db.deleteRecordsForTrip(t.id);
+      await _db.deleteTrip(t.id);
+    }
+    _trips = [];
+    notifyListeners();
+  }
+
   // ── Escrita: Viagem ───────────────────────────────────────────────────────
 
   /// Cria ou atualiza uma viagem localmente + enfileira para sync.

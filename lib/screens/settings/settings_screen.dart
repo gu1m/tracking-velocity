@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/auth_service.dart';
+import '../../services/export_service.dart';
 import '../../services/location_service.dart';
+import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
 import '../legal/privacy_policy_screen.dart';
 import '../legal/terms_screen.dart';
@@ -38,31 +41,29 @@ class SettingsScreen extends StatelessWidget {
               }
             },
           ),
-          _Tile(
+          _InfoTile(
             icon: Icons.tune_rounded,
             title: 'Limite mínimo de gravação',
             subtitle: '${LocationService.minTrackingSpeedKmh.toInt()} km/h',
-            onTap: () {},
           ),
-          _Tile(
+          _InfoTile(
             icon: Icons.battery_saver_rounded,
             title: 'Tempo até encerrar viagem',
             subtitle: '${LocationService.tripIdleTimeout.inMinutes} minutos parado',
-            onTap: () {},
           ),
           const SizedBox(height: 8),
           const _SectionTitle('Privacidade'),
           _Tile(
             icon: Icons.cloud_download_rounded,
             title: 'Baixar meus dados',
-            subtitle: 'Exporta tudo o que está no aparelho',
-            onTap: () {},
+            subtitle: 'Exporta todas as viagens em Excel',
+            onTap: () => _exportData(context),
           ),
           _Tile(
             icon: Icons.delete_outline_rounded,
             title: 'Apagar histórico',
             subtitle: 'Remove todas as viagens deste aparelho',
-            onTap: () {},
+            onTap: () => _confirmClearHistory(context),
             destructive: true,
           ),
           const SizedBox(height: 8),
@@ -71,7 +72,7 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.help_outline_rounded,
             title: 'Suporte',
             subtitle: 'Atendimento por WhatsApp',
-            onTap: () {},
+            onTap: () => _openSupport(),
           ),
           _Tile(
             icon: Icons.description_outlined,
@@ -120,6 +121,62 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _exportData(BuildContext context) async {
+    final trips = context.read<StorageService>().trips;
+    if (trips.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhuma viagem registrada para exportar.')),
+      );
+      return;
+    }
+    try {
+      await ExportService().exportTrips(trips);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao exportar: $e')),
+      );
+    }
+  }
+
+  Future<void> _confirmClearHistory(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Apagar histórico'),
+        content: const Text(
+          'Todas as viagens salvas neste aparelho serão removidas. '
+          'Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Apagar tudo'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await context.read<StorageService>().clearAllData();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Histórico apagado.')),
+    );
+  }
+
+  Future<void> _openSupport() async {
+    final uri = Uri.parse('https://wa.me/5511999999999'
+        '?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Tracking%20Velocidade.');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Future<void> _confirmDeleteAccount(BuildContext context) async {
@@ -233,6 +290,40 @@ class _SectionTitle extends StatelessWidget {
               color: AppColors.textSecondary,
             )),
       );
+}
+
+// Tile somente leitura — exibe informação sem indicar que é clicável.
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+
+  const _InfoTile({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.textSecondary),
+        title: Text(title,
+            style: const TextStyle(color: AppColors.textPrimary)),
+        subtitle: subtitle != null
+            ? Text(subtitle!,
+                style: const TextStyle(color: AppColors.textSecondary))
+            : null,
+      ),
+    );
+  }
 }
 
 class _Tile extends StatelessWidget {
