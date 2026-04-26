@@ -5,6 +5,7 @@ import '../../services/storage_service.dart';
 import '../../services/export_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/trip_card.dart';
+import 'daily_map_screen.dart';
 import 'trip_detail_screen.dart';
 import 'search_filter_screen.dart';
 
@@ -37,6 +38,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         title: const Text('Histórico'),
         actions: [
+          IconButton(
+            tooltip: 'Mapa do dia',
+            icon: const Icon(Icons.map_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => DailyMapScreen(initialDate: DateTime.now()),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Filtros avançados',
             icon: const Icon(Icons.tune_rounded),

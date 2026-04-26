@@ -46,7 +46,10 @@ class BillingService extends ChangeNotifier {
       if (initPoint == null) throw Exception('Backend não retornou init_point.');
 
       final uri = Uri.parse(initPoint);
-      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return await launchUrl(uri, mode: LaunchMode.platformDefault);
     } catch (e) {
       debugPrint('[BillingService] startCheckout erro: $e');
       return false;

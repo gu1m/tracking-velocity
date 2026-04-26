@@ -106,6 +106,15 @@ class StorageService extends ChangeNotifier {
     return rows.map(_rowToRecord).toList();
   }
 
+  /// Retorna todos os registros de velocidade de um dia específico.
+  Future<List<SpeedRecord>> getDailyRecords(DateTime date) async {
+    if (_currentUser == null) return [];
+    final from = DateTime(date.year, date.month, date.day);
+    final to = from.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
+    final rows = await _db.getRecordsForDateRange(_currentUser!.uid, from, to);
+    return rows.map(_rowToRecord).toList();
+  }
+
   // ── Escrita: Viagem ───────────────────────────────────────────────────────
 
   /// Cria ou atualiza uma viagem localmente + enfileira para sync.
@@ -192,6 +201,17 @@ class StorageService extends ChangeNotifier {
     await _db.deleteTrip(tripId);
     await _db.deleteRecordsForTrip(tripId);
     _trips.removeWhere((t) => t.id == tripId);
+    notifyListeners();
+  }
+
+  Future<void> clearAllData() async {
+    if (_currentUser == null) return;
+    final trips = await _db.getTripsForUser(_currentUser!.uid, limit: 9999);
+    for (final t in trips) {
+      await _db.deleteRecordsForTrip(t.id);
+      await _db.deleteTrip(t.id);
+    }
+    _trips = [];
     notifyListeners();
   }
 

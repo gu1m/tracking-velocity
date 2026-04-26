@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/auth_service.dart';
+import '../../services/export_service.dart';
 import '../../services/location_service.dart';
+import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
 import '../legal/privacy_policy_screen.dart';
 import '../legal/terms_screen.dart';
@@ -41,28 +44,28 @@ class SettingsScreen extends StatelessWidget {
           _Tile(
             icon: Icons.tune_rounded,
             title: 'Limite mínimo de gravação',
-            subtitle: '${LocationService.minTrackingSpeedKmh.toInt()} km/h',
-            onTap: () {},
+            subtitle: '${loc.minTrackingSpeedKmh.toInt()} km/h',
+            onTap: () => _editMinSpeed(context, loc),
           ),
           _Tile(
             icon: Icons.battery_saver_rounded,
             title: 'Tempo até encerrar viagem',
-            subtitle: '${LocationService.tripIdleTimeout.inMinutes} minutos parado',
-            onTap: () {},
+            subtitle: '${loc.tripIdleTimeoutMinutes} minutos parado',
+            onTap: () => _editTripTimeout(context, loc),
           ),
           const SizedBox(height: 8),
           const _SectionTitle('Privacidade'),
           _Tile(
             icon: Icons.cloud_download_rounded,
             title: 'Baixar meus dados',
-            subtitle: 'Exporta tudo o que está no aparelho',
-            onTap: () {},
+            subtitle: 'Exporta todas as viagens em Excel',
+            onTap: () => _exportData(context),
           ),
           _Tile(
             icon: Icons.delete_outline_rounded,
             title: 'Apagar histórico',
             subtitle: 'Remove todas as viagens deste aparelho',
-            onTap: () {},
+            onTap: () => _confirmClearHistory(context),
             destructive: true,
           ),
           const SizedBox(height: 8),
@@ -70,8 +73,8 @@ class SettingsScreen extends StatelessWidget {
           _Tile(
             icon: Icons.help_outline_rounded,
             title: 'Suporte',
-            subtitle: 'Atendimento por WhatsApp',
-            onTap: () {},
+            subtitle: 'Enviar e-mail para o time',
+            onTap: () => _openSupport(),
           ),
           _Tile(
             icon: Icons.description_outlined,
@@ -122,6 +125,104 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _editMinSpeed(BuildContext context, LocationService loc) async {
+    double current = loc.minTrackingSpeedKmh;
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => _SliderDialog(
+        title: 'Limite mínimo de gravação',
+        description:
+            'O app só registra quando você está acima dessa velocidade.',
+        value: current,
+        min: 5,
+        max: 120,
+        divisions: 23,
+        unit: 'km/h',
+        onChanged: (v) => current = v,
+      ),
+    );
+    if (result != null) await loc.setMinSpeed(result);
+  }
+
+  Future<void> _editTripTimeout(
+      BuildContext context, LocationService loc) async {
+    double current = loc.tripIdleTimeoutMinutes.toDouble();
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => _SliderDialog(
+        title: 'Tempo para encerrar viagem',
+        description:
+            'Se você ficar parado por mais tempo que esse limite, a viagem é encerrada.',
+        value: current,
+        min: 2,
+        max: 30,
+        divisions: 28,
+        unit: 'min',
+        onChanged: (v) => current = v,
+      ),
+    );
+    if (result != null) await loc.setTripTimeout(result.toInt());
+  }
+
+  Future<void> _exportData(BuildContext context) async {
+    final trips = context.read<StorageService>().trips;
+    if (trips.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhuma viagem registrada para exportar.')),
+      );
+      return;
+    }
+    try {
+      await ExportService().exportTrips(trips);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao exportar: $e')),
+      );
+    }
+  }
+
+  Future<void> _confirmClearHistory(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Apagar histórico'),
+        content: const Text(
+          'Todas as viagens salvas neste aparelho serão removidas. '
+          'Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Apagar tudo'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    await context.read<StorageService>().clearAllData();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Histórico apagado.')),
+    );
+  }
+
+  Future<void> _openSupport() async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'contato@trackingvelocidade.com.br',
+      query: 'subject=Suporte%20Tracking%20Velocidade',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
   Future<void> _confirmDeleteAccount(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -163,6 +264,98 @@ class SettingsScreen extends StatelessWidget {
         ),
       );
     }
+  }
+}
+
+class _SliderDialog extends StatefulWidget {
+  final String title;
+  final String description;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String unit;
+  final ValueChanged<double> onChanged;
+
+  const _SliderDialog({
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.unit,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SliderDialog> createState() => _SliderDialogState();
+}
+
+class _SliderDialogState extends State<_SliderDialog> {
+  late double _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(widget.description,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          const SizedBox(height: 20),
+          Text(
+            '${_value.toInt()} ${widget.unit}',
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+          Slider(
+            value: _value,
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
+            activeColor: AppColors.primary,
+            label: '${_value.toInt()} ${widget.unit}',
+            onChanged: (v) {
+              setState(() => _value = v);
+              widget.onChanged(v);
+            },
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${widget.min.toInt()} ${widget.unit}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary)),
+              Text('${widget.max.toInt()} ${widget.unit}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary)),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_value),
+          child: const Text('Salvar'),
+        ),
+      ],
+    );
   }
 }
 

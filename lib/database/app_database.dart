@@ -115,6 +115,19 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteRecordsForTrip(String tripId) =>
       (delete(localSpeedRecords)..where((r) => r.tripId.equals(tripId))).go();
 
+  Future<List<LocalSpeedRecord>> getRecordsForDateRange(
+    String userId,
+    DateTime from,
+    DateTime to,
+  ) =>
+      (select(localSpeedRecords)
+            ..where((r) =>
+                r.userId.equals(userId) &
+                r.recordedAt.isBiggerOrEqualValue(from) &
+                r.recordedAt.isSmallerOrEqualValue(to))
+            ..orderBy([(r) => OrderingTerm.asc(r.recordedAt)]))
+          .get();
+
   // ── SyncQueue DAOs ────────────────────────────────────────────────────────
 
   Future<int> enqueue(SyncQueueCompanion item) =>

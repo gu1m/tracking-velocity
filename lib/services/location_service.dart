@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/feature_flags.dart';
 import '../models/app_user.dart';
@@ -12,15 +13,49 @@ import '../models/speed_record.dart';
 /// Gerencia o tracking de velocidade via GPS.
 ///
 /// Regras de negócio:
-///  - Registra apenas quando velocidade ≥ 10 km/h.
+///  - Registra apenas quando velocidade ≥ [minTrackingSpeedKmh] (padrão 10 km/h, configurável).
 ///  - Agrega leituras por janela de 1 minuto → emite [SpeedRecord] via [speedRecords].
-///  - Encerra a viagem após [tripIdleTimeout] abaixo do limiar.
+///  - Encerra a viagem após [tripIdleTimeout] abaixo do limiar (padrão 5 min, configurável).
 ///  - Plano Free: background tracking desativado + limite de 30 min por sessão.
 ///  - Plano Premium: background tracking ilimitado.
 class LocationService extends ChangeNotifier {
-  static const double minTrackingSpeedKmh = 10.0;
-  static const Duration tripIdleTimeout = Duration(minutes: 5);
+  static const String _prefMinSpeed = 'min_tracking_speed_kmh';
+  static const String _prefTripTimeout = 'trip_idle_timeout_minutes';
+  static const double defaultMinSpeedKmh = 10.0;
+  static const int defaultTripTimeoutMinutes = 5;
   static const Duration minuteWindow = Duration(minutes: 1);
+
+  double _minTrackingSpeedKmh = defaultMinSpeedKmh;
+  int _tripIdleTimeoutMinutes = defaultTripTimeoutMinutes;
+
+  double get minTrackingSpeedKmh => _minTrackingSpeedKmh;
+  int get tripIdleTimeoutMinutes => _tripIdleTimeoutMinutes;
+  Duration get tripIdleTimeout => Duration(minutes: _tripIdleTimeoutMinutes);
+
+  LocationService() {
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _minTrackingSpeedKmh = prefs.getDouble(_prefMinSpeed) ?? defaultMinSpeedKmh;
+    _tripIdleTimeoutMinutes = prefs.getInt(_prefTripTimeout) ?? defaultTripTimeoutMinutes;
+    notifyListeners();
+  }
+
+  Future<void> setMinSpeed(double kmh) async {
+    _minTrackingSpeedKmh = kmh;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_prefMinSpeed, kmh);
+    notifyListeners();
+  }
+
+  Future<void> setTripTimeout(int minutes) async {
+    _tripIdleTimeoutMinutes = minutes;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefTripTimeout, minutes);
+    notifyListeners();
+  }
 
   // ── Feature flags ────────────────────────────────────────────────────────
   FeatureFlags _flags = const FeatureFlags(SubscriptionStatus.expired);
