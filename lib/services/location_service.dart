@@ -98,10 +98,11 @@ class LocationService extends ChangeNotifier {
   /// Solicita as permissões necessárias para o tracking.
   /// Retorna true se ao menos a permissão básica de localização foi concedida.
   Future<bool> requestPermissions() async {
-    // Tenta pedir "sempre" primeiro; se negado, aceita "em uso".
-    PermissionStatus status = await Permission.locationAlways.request();
-    if (status.isDenied || status.isPermanentlyDenied) {
-      status = await Permission.location.request();
+    // Android 10+: obrigatório pedir whenInUse ANTES de always.
+    // Pedir always diretamente retorna denied sem mostrar o diálogo.
+    PermissionStatus status = await Permission.locationWhenInUse.request();
+    if (status.isGranted) {
+      await Permission.locationAlways.request();
     }
     await Permission.notification.request();
     return status.isGranted;
