@@ -31,8 +31,10 @@ dependencies:
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.1
 
-  # Persistência local
-  sqflite: ^2.3.3
+  # Persistência local — Drift (ORM SQLite type-safe)
+  drift: ^2.18.0
+  drift_flutter: ^0.2.1
+  path: ^1.9.0
   path_provider: ^2.1.4
   shared_preferences: ^2.3.0
 
@@ -49,10 +51,15 @@ dependencies:
   flutter_svg: ^2.0.10+1
   fl_chart: ^0.68.0
 
+  # Monetização — AdMob
+  google_mobile_ads: ^5.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  drift_dev: ^2.18.0
+  build_runner: ^2.4.9
 
 flutter:
   uses-material-design: true

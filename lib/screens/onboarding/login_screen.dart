@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
-import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_shell.dart';
 import 'email_login_screen.dart';
 import 'phone_login_screen.dart';
-import 'permissions_screen.dart';
 
 /// Tela inicial de login. Apresenta os 4 métodos: Google, Apple,
 /// E-mail e Telefone (SMS).
@@ -150,22 +147,7 @@ class LoginScreen extends StatelessWidget {
       await future();
       if (!context.mounted) return;
       Navigator.of(context).pop(); // fecha loading
-
-      // Após login, vai para tela de permissões e em seguida liga o serviço.
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => PermissionsScreen(
-            onGranted: () async {
-              await context.read<LocationService>().startBackgroundService();
-              if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const AppShell()),
-                (_) => false,
-              );
-            },
-          ),
-        ),
-      );
+      // _Root em main.dart reage automaticamente ao auth state — não navegar manualmente.
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop();

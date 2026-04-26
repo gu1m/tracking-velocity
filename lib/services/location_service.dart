@@ -5,6 +5,8 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../config/feature_flags.dart';
+import '../models/app_user.dart';
 import '../models/speed_record.dart';
 
 /// Gerencia o tracking de velocidade via GPS.
@@ -13,12 +15,31 @@ import '../models/speed_record.dart';
 ///  - Registra apenas quando velocidade ≥ 10 km/h.
 ///  - Agrega leituras por janela de 1 minuto → emite [SpeedRecord] via [speedRecords].
 ///  - Encerra a viagem após [tripIdleTimeout] abaixo do limiar.
-///  - Delega a captura GPS ao isolate de background (background_location.dart);
-///    este serviço só faz o processamento/estado no isolate principal.
+///  - Plano Free: background tracking desativado + limite de 30 min por sessão.
+///  - Plano Premium: background tracking ilimitado.
 class LocationService extends ChangeNotifier {
   static const double minTrackingSpeedKmh = 10.0;
   static const Duration tripIdleTimeout = Duration(minutes: 5);
   static const Duration minuteWindow = Duration(minutes: 1);
+
+  // ── Feature flags ────────────────────────────────────────────────────────
+  FeatureFlags _flags = const FeatureFlags(SubscriptionStatus.expired);
+  DateTime? _sessionStartedAt;
+
+  /// Atualiza as feature flags quando o status de assinatura mudar.
+  void updateUser(AppUser? user) {
+    _flags = FeatureFlags.fromUser(user);
+    // Se Free e background não permitido → para o serviço
+    if (!_flags.hasBackgroundTracking && _isServiceRunning) {
+      pauseService();
+    }
+    notifyListeners();
+  }
+
+  bool get isPremium => _flags.isPremium;
+  bool get showAds => _flags.showAds;
+  bool get canExportReports => _flags.canExportReports;
+  bool get hasUnlimitedHistory => _flags.hasUnlimitedHistory;
 
   // ── Estado exposto para a UI ─────────────────────────────────────────────
   bool _isServiceRunning = false;
@@ -89,11 +110,21 @@ class LocationService extends ChangeNotifier {
   // ── Ciclo de vida do serviço ─────────────────────────────────────────────
 
   /// Inicia (ou reconecta ao) serviço de background.
-  /// Chame após o usuário conceder permissões e fazer login.
+  /// Plano Free: roda apenas em foreground (sem background real).
+  /// Plano Premium: roda em background ilimitado.
   Future<void> startBackgroundService() async {
     final granted = await requestPermissions();
     if (!granted) {
       debugPrint('[LocationService] Permissão de localização negada.');
+      return;
+    }
+
+    // Free: não inicia o serviço de background — apenas foreground
+    if (!_flags.hasBackgroundTracking) {
+      debugPrint('[LocationService] Plano Free — apenas foreground tracking.');
+      _isServiceRunning = true;
+      _sessionStartedAt = DateTime.now();
+      notifyListeners();
       return;
     }
 
@@ -108,6 +139,7 @@ class LocationService extends ChangeNotifier {
     _updateSub = service.on('update').listen(_handleUpdate);
 
     _isServiceRunning = true;
+    _sessionStartedAt = DateTime.now();
     notifyListeners();
   }
 
@@ -125,6 +157,16 @@ class LocationService extends ChangeNotifier {
 
   void _handleUpdate(Map<String, dynamic>? data) {
     if (data == null) return;
+
+    // Free: verifica limite de sessão
+    if (_sessionStartedAt != null && _flags.maxSessionDuration != null) {
+      final elapsed = DateTime.now().difference(_sessionStartedAt!);
+      if (elapsed >= _flags.maxSessionDuration!) {
+        debugPrint('[LocationService] Limite de sessão Free atingido (30 min).');
+        pauseService();
+        return;
+      }
+    }
 
     final speedKmh = (data['speedKmh'] as num).toDouble();
     final lat = (data['latitude'] as num).toDouble();

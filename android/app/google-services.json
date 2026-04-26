@@ -12,7 +12,20 @@
           "package_name": "com.example.tracking_velocidade"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "81579431387-6qguun6q1uoaqqjdpa2t5tik768i14bo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tracking_velocidade",
+            "certificate_hash": "c8651b559a7b1e37bf81d791cd592ea6d94b3e48"
+          }
+        },
+        {
+          "client_id": "81579431387-lth8sfelr0hekgol96r6rg6p2nupnolo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAWweqZBQoMEH3F5KzEgFcaSf-gZc5fA2c"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "81579431387-lth8sfelr0hekgol96r6rg6p2nupnolo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "81579431387-7sg6vausa853cdu9tgsnlh92r9e9nf45.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.trackingVelocidade"
+              }
+            }
+          ]
         }
       }
     }

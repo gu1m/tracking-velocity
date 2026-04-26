@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // Gerado pelo `flutterfire configure`
 import 'firebase_options.dart';
@@ -14,6 +16,7 @@ import 'services/location_service.dart';
 import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'screens/onboarding/permissions_screen.dart';
 import 'widgets/app_shell.dart';
 
 Future<void> main() async {
@@ -24,6 +27,9 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ── AdMob ─────────────────────────────────────────────────────────────────
+  await MobileAds.instance.initialize();
 
   // ── Background GPS ────────────────────────────────────────────────────────
   await initializeBackgroundService();
@@ -59,18 +65,60 @@ class TrackingVelocidadeApp extends StatelessWidget {
   }
 }
 
-/// Decide entre onboarding e app shell conforme o estado de auth.
-class _Root extends StatelessWidget {
+/// Decide a tela com base no estado de auth e permissões.
+/// Toda navegação pós-login passa por aqui — sem push imperativo nas telas de login.
+class _Root extends StatefulWidget {
   const _Root();
+
+  @override
+  State<_Root> createState() => _RootState();
+}
+
+class _RootState extends State<_Root> {
+  /// null = ainda checando, true = concedida, false = não concedida
+  bool? _hasPermission;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    final status = await Permission.locationWhenInUse.status;
+    if (mounted) {
+      setState(() => _hasPermission = status.isGranted);
+    }
+  }
+
+  Future<void> _onPermissionGranted() async {
+    final locationService = context.read<LocationService>();
+    await locationService.startBackgroundService();
+    if (mounted) setState(() => _hasPermission = true);
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
-    if (auth.isLoading) {
+
+    // Carregando auth
+    if (auth.isLoading || _hasPermission == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    return auth.isAuthenticated ? const AppShell() : const OnboardingScreen();
+
+    // Não autenticado → onboarding
+    if (!auth.isAuthenticated) {
+      return const OnboardingScreen();
+    }
+
+    // Autenticado mas sem permissão → tela de permissões
+    if (!_hasPermission!) {
+      return PermissionsScreen(onGranted: _onPermissionGranted);
+    }
+
+    // Autenticado e com permissão → app principal
+    return const AppShell();
   }
 }

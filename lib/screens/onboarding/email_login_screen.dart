@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
-import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_shell.dart';
-import 'permissions_screen.dart';
 
 class EmailLoginScreen extends StatefulWidget {
   const EmailLoginScreen({super.key});
@@ -106,21 +103,8 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
           password: _passCtrl.text,
         );
       }
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => PermissionsScreen(
-            onGranted: () async {
-              await context.read<LocationService>().startBackgroundService();
-              if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const AppShell()),
-                (_) => false,
-              );
-            },
-          ),
-        ),
-      );
+      // _Root em main.dart reage automaticamente ao auth state change.
+      // Não é necessário navegar manualmente aqui.
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
