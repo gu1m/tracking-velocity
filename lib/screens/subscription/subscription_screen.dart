@@ -153,13 +153,22 @@ class SubscriptionScreen extends StatelessWidget {
   Future<void> _checkout(BuildContext context) async {
     final user = context.read<AuthService>().currentUser;
     if (user == null) return;
-    final ok = await context
-        .read<BillingService>()
-        .startCheckout(userId: user.uid);
-    if (!context.mounted) return;
-    if (!ok) {
+    try {
+      final ok = await context
+          .read<BillingService>()
+          .startCheckout(userId: user.uid);
+      if (!context.mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Checkout aberto. Conclua o pagamento no navegador.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível abrir o checkout.')),
+        SnackBar(content: Text('Erro ao abrir checkout: $e')),
       );
     }
   }
@@ -167,16 +176,16 @@ class SubscriptionScreen extends StatelessWidget {
   Future<void> _cancel(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Cancelar assinatura?'),
         content: const Text(
             'Você manterá acesso até o final do período pago. Tem certeza?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Manter ativa')),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Cancelar',
                 style: TextStyle(color: AppColors.danger)),
           ),
@@ -261,7 +270,7 @@ class _Benefits extends StatelessWidget {
     (Icons.search_rounded, 'Busca avançada',
         'Filtre por data, horário, local e faixa de velocidade.'),
     (Icons.support_agent_rounded, 'Suporte prioritário',
-        'Atendimento por WhatsApp em até 24 horas.'),
+        'Atendimento por e-mail com resposta em até 24 horas.'),
   ];
 
   @override

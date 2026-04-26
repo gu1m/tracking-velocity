@@ -71,7 +71,7 @@ class SettingsScreen extends StatelessWidget {
           _Tile(
             icon: Icons.help_outline_rounded,
             title: 'Suporte',
-            subtitle: 'Atendimento por WhatsApp',
+            subtitle: 'Enviar e-mail para o time',
             onTap: () => _openSupport(),
           ),
           _Tile(
@@ -172,10 +172,13 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _openSupport() async {
-    final uri = Uri.parse('https://wa.me/5511999999999'
-        '?text=Ol%C3%A1%2C%20preciso%20de%20ajuda%20com%20o%20Tracking%20Velocidade.');
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'contato@trackingvelocidade.com.br',
+      query: 'subject=Suporte%20Tracking%20Velocidade',
+    );
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      await launchUrl(uri);
     }
   }
 
