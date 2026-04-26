@@ -1,0 +1,60 @@
+name: tracking_velocidade
+description: "App que registra a velocidade média do usuário via GPS para servir como prova em casos de multas injustas."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # State management
+  provider: ^6.1.2
+
+  # Navegação
+  go_router: ^14.2.0
+
+  # Localização e tracking em background
+  geolocator: ^12.0.0
+  flutter_background_service: ^5.0.5
+  permission_handler: ^11.3.1
+
+  # Autenticação
+  firebase_core: ^3.3.0
+  firebase_auth: ^5.1.4
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.1
+
+  # Persistência local
+  sqflite: ^2.3.3
+  path_provider: ^2.1.4
+  shared_preferences: ^2.3.0
+
+  # Pagamentos - Mercado Pago
+  http: ^1.2.2
+  url_launcher: ^6.3.0
+
+  # Exportação de relatórios
+  excel: ^4.0.6
+  share_plus: ^10.0.2
+  intl: ^0.20.2
+
+  # UI utilitários
+  flutter_svg: ^2.0.10+1
+  fl_chart: ^0.68.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

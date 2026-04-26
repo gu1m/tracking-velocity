@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter pub *)",
+      "PowerShell($userPath = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); $userPath -split ';')",
+      "PowerShell($paths = @\\(\"C:\\\\flutter\", \"C:\\\\src\\\\flutter\", \"$env:LOCALAPPDATA\\\\flutter\", \"$env:USERPROFILE\\\\flutter\", \"$env:USERPROFILE\\\\AppData\\\\Local\\\\flutter\", \"C:\\\\tools\\\\flutter\"\\); foreach \\($p in $paths\\) { if \\(Test-Path \"$p\\\\bin\\\\flutter.bat\"\\) { Write-Host \"FOUND: $p\" } })",
+      "PowerShell($sysPath = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\); $sysPath -split ';' | Where-Object { $_ -ne \"\" })",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "PowerShell(npx firebase --version 2>&1)",
+      "PowerShell(npx flutterfire --version 2>&1)",
+      "PowerShell(cd \"C:\\\\Users\\\\gguim\\\\Desktop\\\\tracking_velocity\\\\Aplicativo Tracking Velocidade\\\\functions\" ; $env:RAILWAY_TOKEN = \"7a6619f3-6d7c-4d5e-ad0b-785a4b145020\" ; $env:RAILWAY_TOKEN)"
+    ]
+  }
+}
