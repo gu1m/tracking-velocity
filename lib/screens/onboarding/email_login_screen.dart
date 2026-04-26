@@ -103,8 +103,9 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
           password: _passCtrl.text,
         );
       }
-      // _Root em main.dart reage automaticamente ao auth state change.
-      // Não é necessário navegar manualmente aqui.
+      if (!mounted) return;
+      // Remove todas as rotas da pilha para que o _Root (que agora mostra AppShell) fique visível.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

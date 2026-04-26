@@ -146,8 +146,9 @@ class LoginScreen extends StatelessWidget {
     try {
       await future();
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // fecha loading
-      // _Root em main.dart reage automaticamente ao auth state — não navegar manualmente.
+      Navigator.of(context).pop(); // fecha loading dialog
+      // Remove todas as rotas para que o _Root (agora mostrando AppShell) fique visível.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop();

@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
-import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/app_shell.dart';
-import 'permissions_screen.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -116,20 +113,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
             phoneNumber: _phoneCtrl.text.trim(),
           );
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => PermissionsScreen(
-            onGranted: () async {
-              await context.read<LocationService>().startBackgroundService();
-              if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const AppShell()),
-                (_) => false,
-              );
-            },
-          ),
-        ),
-      );
+      // Remove todas as rotas para que o _Root (agora mostrando AppShell) fique visível.
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
