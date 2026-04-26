@@ -3,6 +3,7 @@ import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../models/speed_record.dart';
 import '../models/trip.dart';
 
 /// Serviço de exportação de relatórios em Excel.
@@ -154,6 +155,63 @@ class ExportService {
     sheet.setColumnWidth(5, 14);
     sheet.setColumnWidth(6, 14);
     sheet.setColumnWidth(7, 38);
+  }
+
+  /// Exporta todos os registros minuto-a-minuto de um dia como Excel.
+  Future<File> exportDailyRecords(
+    DateTime date,
+    List<SpeedRecord> records,
+  ) async {
+    final excel = Excel.createExcel();
+    excel.delete('Sheet1');
+
+    final sheet = excel['Trajeto ${DateFormat('dd-MM-yyyy').format(date)}'];
+    final df = DateFormat(_dateFormat);
+
+    sheet.appendRow([
+      TextCellValue('TRAJETO DIÁRIO — Tracking Velocidade'),
+    ]);
+    sheet.appendRow([
+      TextCellValue('Data: ${DateFormat('dd/MM/yyyy').format(date)}'),
+    ]);
+    sheet.appendRow([
+      TextCellValue('Gerado em: ${df.format(DateTime.now())}'),
+    ]);
+    sheet.appendRow([TextCellValue('')]);
+
+    final headers = [
+      'Data/Hora',
+      'Velocidade média (km/h)',
+      'Velocidade máxima (km/h)',
+      'Latitude',
+      'Longitude',
+      'Precisão GPS (m)',
+    ];
+    sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
+
+    for (final r in records) {
+      sheet.appendRow([
+        TextCellValue(df.format(r.timestamp)),
+        DoubleCellValue(r.speedKmh),
+        DoubleCellValue(r.maxSpeedKmh),
+        DoubleCellValue(r.latitude),
+        DoubleCellValue(r.longitude),
+        DoubleCellValue(r.accuracy),
+      ]);
+    }
+
+    sheet.setColumnWidth(0, 22);
+    sheet.setColumnWidth(1, 24);
+    sheet.setColumnWidth(2, 24);
+    sheet.setColumnWidth(3, 14);
+    sheet.setColumnWidth(4, 14);
+    sheet.setColumnWidth(5, 14);
+
+    final stamp = DateFormat('yyyyMMdd').format(date);
+    return _saveAndShare(
+      excel,
+      filename: 'trajeto_diario_$stamp.xlsx',
+    );
   }
 
   Future<File> _saveAndShare(Excel excel, {required String filename}) async {

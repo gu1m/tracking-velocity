@@ -158,13 +158,15 @@ class SubscriptionScreen extends StatelessWidget {
           .read<BillingService>()
           .startCheckout(userId: user.uid);
       if (!context.mounted) return;
-      if (!ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Checkout aberto. Conclua o pagamento no navegador.'),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            ok
+                ? 'Checkout aberto. Conclua o pagamento no navegador.'
+                : 'Não foi possível abrir o navegador. Tente novamente.',
           ),
-        );
-      }
+        ),
+      );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,7 +194,7 @@ class SubscriptionScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirm != true) return;
+    if (confirm != true || !context.mounted) return;
     final user = context.read<AuthService>().currentUser;
     if (user == null) return;
     final preapprovalId = user.preapprovalId ?? '';
@@ -270,7 +272,7 @@ class _Benefits extends StatelessWidget {
     (Icons.search_rounded, 'Busca avançada',
         'Filtre por data, horário, local e faixa de velocidade.'),
     (Icons.support_agent_rounded, 'Suporte prioritário',
-        'Atendimento por e-mail com resposta em até 24 horas.'),
+        'Atendimento por WhatsApp em até 24 horas.'),
   ];
 
   @override

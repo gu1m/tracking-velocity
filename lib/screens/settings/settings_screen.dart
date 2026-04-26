@@ -41,15 +41,17 @@ class SettingsScreen extends StatelessWidget {
               }
             },
           ),
-          _InfoTile(
+          _Tile(
             icon: Icons.tune_rounded,
             title: 'Limite mínimo de gravação',
-            subtitle: '${LocationService.minTrackingSpeedKmh.toInt()} km/h',
+            subtitle: '${loc.minTrackingSpeedKmh.toInt()} km/h',
+            onTap: () => _editMinSpeed(context, loc),
           ),
-          _InfoTile(
+          _Tile(
             icon: Icons.battery_saver_rounded,
             title: 'Tempo até encerrar viagem',
-            subtitle: '${LocationService.tripIdleTimeout.inMinutes} minutos parado',
+            subtitle: '${loc.tripIdleTimeoutMinutes} minutos parado',
+            onTap: () => _editTripTimeout(context, loc),
           ),
           const SizedBox(height: 8),
           const _SectionTitle('Privacidade'),
@@ -121,6 +123,45 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _editMinSpeed(BuildContext context, LocationService loc) async {
+    double current = loc.minTrackingSpeedKmh;
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => _SliderDialog(
+        title: 'Limite mínimo de gravação',
+        description:
+            'O app só registra quando você está acima dessa velocidade.',
+        value: current,
+        min: 5,
+        max: 120,
+        divisions: 23,
+        unit: 'km/h',
+        onChanged: (v) => current = v,
+      ),
+    );
+    if (result != null) await loc.setMinSpeed(result);
+  }
+
+  Future<void> _editTripTimeout(
+      BuildContext context, LocationService loc) async {
+    double current = loc.tripIdleTimeoutMinutes.toDouble();
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => _SliderDialog(
+        title: 'Tempo para encerrar viagem',
+        description:
+            'Se você ficar parado por mais tempo que esse limite, a viagem é encerrada.',
+        value: current,
+        min: 2,
+        max: 30,
+        divisions: 28,
+        unit: 'min',
+        onChanged: (v) => current = v,
+      ),
+    );
+    if (result != null) await loc.setTripTimeout(result.toInt());
   }
 
   Future<void> _exportData(BuildContext context) async {
@@ -226,6 +267,98 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
+class _SliderDialog extends StatefulWidget {
+  final String title;
+  final String description;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String unit;
+  final ValueChanged<double> onChanged;
+
+  const _SliderDialog({
+    required this.title,
+    required this.description,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.unit,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SliderDialog> createState() => _SliderDialogState();
+}
+
+class _SliderDialogState extends State<_SliderDialog> {
+  late double _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _value = widget.value;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(widget.description,
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.textSecondary)),
+          const SizedBox(height: 20),
+          Text(
+            '${_value.toInt()} ${widget.unit}',
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+          Slider(
+            value: _value,
+            min: widget.min,
+            max: widget.max,
+            divisions: widget.divisions,
+            activeColor: AppColors.primary,
+            label: '${_value.toInt()} ${widget.unit}',
+            onChanged: (v) {
+              setState(() => _value = v);
+              widget.onChanged(v);
+            },
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${widget.min.toInt()} ${widget.unit}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary)),
+              Text('${widget.max.toInt()} ${widget.unit}',
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.textSecondary)),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(_value),
+          child: const Text('Salvar'),
+        ),
+      ],
+    );
+  }
+}
+
 class _UserCard extends StatelessWidget {
   final String? name;
   final String? email;
@@ -293,40 +426,6 @@ class _SectionTitle extends StatelessWidget {
               color: AppColors.textSecondary,
             )),
       );
-}
-
-// Tile somente leitura — exibe informação sem indicar que é clicável.
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.textSecondary),
-        title: Text(title,
-            style: const TextStyle(color: AppColors.textPrimary)),
-        subtitle: subtitle != null
-            ? Text(subtitle!,
-                style: const TextStyle(color: AppColors.textSecondary))
-            : null,
-      ),
-    );
-  }
 }
 
 class _Tile extends StatelessWidget {
