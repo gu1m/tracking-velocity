@@ -1,59 +1,54 @@
+import 'dart:convert';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
-/// Serviço de billing usando Mercado Pago como gateway.
-///
-/// Fluxo recomendado para assinatura recorrente (preapproval):
-///  1. Backend cria um plano (preapproval_plan) no Mercado Pago.
-///  2. Backend cria uma assinatura (preapproval) para o usuário e devolve
-///     a `init_point` (URL de checkout).
-///  3. App abre essa URL no navegador via url_launcher.
-///  4. Mercado Pago dispara um webhook para o backend confirmando o
-///     status (`authorized`, `paused`, `cancelled`).
-///  5. Backend atualiza o status do usuário; o app consulta isso na
-///     próxima abertura.
-///
-/// Documentação: https://www.mercadopago.com.br/developers/pt/docs/subscriptions
+import '../config/api_config.dart';
+
 class BillingService extends ChangeNotifier {
   static const double monthlyPriceBrl = 13.99;
   static const String currency = 'BRL';
   static const String planName = 'Tracking Velocidade Premium';
 
-  /// Endpoint do seu backend que cria a assinatura no Mercado Pago.
-  /// Substitua pela URL do seu servidor.
-  static const String _subscriptionEndpoint =
-      'https://api.seu-backend.com.br/billing/mercadopago/subscribe';
-
   bool _isProcessing = false;
   bool get isProcessing => _isProcessing;
 
-  /// Inicia o checkout abrindo o link de pagamento do Mercado Pago.
-  ///
-  /// Em produção, esse `initPoint` vem do seu backend após criar a
-  /// preapproval. Aqui está mockado para fins de demonstração.
+  /// Cria a assinatura no backend (que chama o Mercado Pago) e abre o
+  /// checkout no navegador externo. Retorna true se o link foi aberto.
   Future<bool> startCheckout({required String userId}) async {
     _isProcessing = true;
     notifyListeners();
 
     try {
-      // TODO: Trocar pela chamada real ao backend:
-      //
-      // final resp = await http.post(
-      //   Uri.parse(_subscriptionEndpoint),
-      //   headers: {'Authorization': 'Bearer $jwt'},
-      //   body: jsonEncode({'userId': userId, 'plan': 'monthly'}),
-      // );
-      // final initPoint = jsonDecode(resp.body)['init_point'] as String;
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null) throw Exception('Usuário não autenticado.');
 
-      await Future.delayed(const Duration(seconds: 1));
-      const initPoint =
-          'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=DEMO';
+      final resp = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}/billing/subscribe'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'userId': userId}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (resp.statusCode != 200) {
+        final err = jsonDecode(resp.body)['error'] ?? 'Erro desconhecido';
+        throw Exception(err);
+      }
+
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final initPoint = data['init_point'] as String?;
+      if (initPoint == null) throw Exception('Backend não retornou init_point.');
 
       final uri = Uri.parse(initPoint);
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      return ok;
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
-      debugPrint('Erro no checkout: $e');
+      debugPrint('[BillingService] startCheckout erro: $e');
       return false;
     } finally {
       _isProcessing = false;
@@ -61,14 +56,41 @@ class BillingService extends ChangeNotifier {
     }
   }
 
-  /// Cancela a assinatura. Em produção, chama o backend que executa
-  /// um PUT em /preapproval/{id} com status=cancelled.
-  Future<bool> cancelSubscription({required String userId}) async {
+  /// Cancela a assinatura ativa do usuário via backend.
+  Future<bool> cancelSubscription({
+    required String userId,
+    required String preapprovalId,
+  }) async {
     _isProcessing = true;
     notifyListeners();
-    await Future.delayed(const Duration(milliseconds: 800));
-    _isProcessing = false;
-    notifyListeners();
-    return true;
+
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null) throw Exception('Usuário não autenticado.');
+
+      final resp = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}/billing/cancel'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'preapprovalId': preapprovalId}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (resp.statusCode != 200) {
+        final err = jsonDecode(resp.body)['error'] ?? 'Erro desconhecido';
+        throw Exception(err);
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('[BillingService] cancelSubscription erro: $e');
+      return false;
+    } finally {
+      _isProcessing = false;
+      notifyListeners();
+    }
   }
 }

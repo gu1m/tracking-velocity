@@ -186,7 +186,12 @@ class SubscriptionScreen extends StatelessWidget {
     if (confirm != true) return;
     final user = context.read<AuthService>().currentUser;
     if (user == null) return;
-    await context.read<BillingService>().cancelSubscription(userId: user.uid);
+    final preapprovalId = user.preapprovalId ?? '';
+    if (!context.mounted) return;
+    await context.read<BillingService>().cancelSubscription(
+          userId: user.uid,
+          preapprovalId: preapprovalId,
+        );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Assinatura cancelada.')),

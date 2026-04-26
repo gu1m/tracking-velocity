@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
+import '../legal/privacy_policy_screen.dart';
+import '../legal/terms_screen.dart';
 import '../onboarding/login_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -74,12 +76,23 @@ class SettingsScreen extends StatelessWidget {
           _Tile(
             icon: Icons.description_outlined,
             title: 'Termos de uso',
-            onTap: () {},
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TermsScreen()),
+            ),
           ),
           _Tile(
             icon: Icons.lock_outline_rounded,
             title: 'Política de privacidade',
-            onTap: () {},
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+            ),
+          ),
+          _Tile(
+            icon: Icons.person_remove_outlined,
+            title: 'Excluir conta',
+            subtitle: 'Remove todos os seus dados permanentemente',
+            destructive: true,
+            onTap: () => _confirmDeleteAccount(context),
           ),
           _Tile(
             icon: Icons.logout_rounded,
@@ -107,6 +120,49 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir conta'),
+        content: const Text(
+          'Todos os seus dados (viagens, registros e assinatura) serão '
+          'removidos permanentemente. Esta ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Excluir permanentemente'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await context.read<AuthService>().deleteAccount();
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao excluir conta: $e'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
   }
 }
 

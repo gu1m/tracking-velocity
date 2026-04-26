@@ -1,4 +1,3 @@
-/// Usuário autenticado do app.
 class AppUser {
   final String uid;
   final String? email;
@@ -7,6 +6,7 @@ class AppUser {
   final String? photoUrl;
   final SubscriptionStatus subscription;
   final DateTime? subscriptionRenewsAt;
+  final String? preapprovalId;
 
   const AppUser({
     required this.uid,
@@ -16,6 +16,7 @@ class AppUser {
     this.photoUrl,
     this.subscription = SubscriptionStatus.trial,
     this.subscriptionRenewsAt,
+    this.preapprovalId,
   });
 
   bool get isPremium =>
@@ -24,18 +25,9 @@ class AppUser {
 }
 
 enum SubscriptionStatus {
-  /// Período gratuito de avaliação (ex: 7 dias)
   trial,
-
-  /// Assinatura ativa e em dia
   active,
-
-  /// Pagamento atrasado/falhou
   pastDue,
-
-  /// Cancelada (ainda pode ter acesso até a data de renovação)
   canceled,
-
-  /// Expirada (sem acesso)
   expired,
 }
