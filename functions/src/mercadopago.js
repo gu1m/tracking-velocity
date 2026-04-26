@@ -19,18 +19,14 @@ async function createSubscription(userId) {
     throw new Error('MP_PLAN_ID não configurado no servidor. Execute scripts/create_mp_plan.js primeiro.');
   }
 
+  // Nota: ao usar preapproval_plan_id, NÃO incluir auto_recurring —
+  // essas configs já estão definidas no plano.
   const response = await preApprovalApi.create({
     body: {
       preapproval_plan_id: process.env.MP_PLAN_ID,
       reason: 'Tracking Velocidade Premium — mensal',
       external_reference: userId,
-      back_url: process.env.MP_BACK_URL || 'https://seuapp.com/subscription/callback',
-      auto_recurring: {
-        frequency: 1,
-        frequency_type: 'months',
-        transaction_amount: 13.99,
-        currency_id: 'BRL',
-      },
+      back_url: process.env.MP_BACK_URL || 'https://trackingvelocidade.com.br/callback',
     },
   });
 
