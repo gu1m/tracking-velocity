@@ -9,10 +9,11 @@ class ApiConfig {
   ApiConfig._();
 
   /// URL base do backend Node.js.
-  /// Padrão: localhost do emulador Android (10.0.2.2) ou dispositivo físico na
-  /// mesma rede — troque por 192.168.x.x para testes em dispositivo real.
+  /// Padrão: Railway em produção.
+  /// Para desenvolvimento local, passe via --dart-define:
+  ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:3000',
+    defaultValue: 'https://tracking-velocidade-production.up.railway.app',
   );
 }
