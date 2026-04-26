@@ -17,7 +17,7 @@ router.post('/subscribe', verifyFirebaseToken, async (req, res) => {
     res.json({ init_point: initPoint, preapproval_id: preapprovalId });
   } catch (err) {
     console.error('[/subscribe] Erro:', err.message);
-    res.status(500).json({ error: 'Não foi possível criar a assinatura.' });
+    res.status(500).json({ error: err.message || 'Não foi possível criar a assinatura.' });
   }
 });
 

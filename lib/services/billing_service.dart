@@ -16,8 +16,9 @@ class BillingService extends ChangeNotifier {
   bool get isProcessing => _isProcessing;
 
   /// Cria a assinatura no backend (que chama o Mercado Pago) e abre o
-  /// checkout no navegador externo. Retorna true se o link foi aberto.
-  Future<bool> startCheckout({required String userId}) async {
+  /// checkout no navegador externo.
+  /// Lança [Exception] se o backend falhar ou a URL não puder ser aberta.
+  Future<void> startCheckout({required String userId}) async {
     _isProcessing = true;
     notifyListeners();
 
@@ -34,25 +35,33 @@ class BillingService extends ChangeNotifier {
             },
             body: jsonEncode({'userId': userId}),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
+
+      debugPrint('[BillingService] status=${resp.statusCode} body=${resp.body}');
 
       if (resp.statusCode != 200) {
-        final err = jsonDecode(resp.body)['error'] ?? 'Erro desconhecido';
+        String err;
+        try {
+          err = (jsonDecode(resp.body) as Map<String, dynamic>)['error'] as String? ??
+              'Erro ${resp.statusCode}';
+        } catch (_) {
+          err = 'Erro ${resp.statusCode}: ${resp.body}';
+        }
         throw Exception(err);
       }
 
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      final initPoint = data['init_point'] as String?;
-      if (initPoint == null) throw Exception('Backend não retornou init_point.');
+      // Mercado Pago retorna init_point; fallback para sandbox_init_point em testes
+      final initPoint = (data['init_point'] ?? data['sandbox_init_point']) as String?;
+      if (initPoint == null) {
+        throw Exception('Backend não retornou URL de checkout. Resposta: ${resp.body}');
+      }
 
       final uri = Uri.parse(initPoint);
-      if (await canLaunchUrl(uri)) {
-        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        throw Exception('Não foi possível abrir o navegador para: $initPoint');
       }
-      return await launchUrl(uri, mode: LaunchMode.platformDefault);
-    } catch (e) {
-      debugPrint('[BillingService] startCheckout erro: $e');
-      return false;
     } finally {
       _isProcessing = false;
       notifyListeners();

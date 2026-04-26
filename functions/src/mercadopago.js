@@ -12,6 +12,13 @@ const preApprovalApi = new PreApproval(client);
 // O campo external_reference é o UID do Firebase — usado pelo webhook para
 // identificar qual usuário atualizar.
 async function createSubscription(userId) {
+  if (!process.env.MP_ACCESS_TOKEN) {
+    throw new Error('MP_ACCESS_TOKEN não configurado no servidor.');
+  }
+  if (!process.env.MP_PLAN_ID) {
+    throw new Error('MP_PLAN_ID não configurado no servidor. Execute scripts/create_mp_plan.js primeiro.');
+  }
+
   const response = await preApprovalApi.create({
     body: {
       preapproval_plan_id: process.env.MP_PLAN_ID,
@@ -28,7 +35,7 @@ async function createSubscription(userId) {
   });
 
   if (!response.init_point) {
-    throw new Error(`MP não retornou init_point: ${JSON.stringify(response)}`);
+    throw new Error(`MP não retornou init_point. Resposta: ${JSON.stringify(response)}`);
   }
 
   return {

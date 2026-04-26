@@ -154,23 +154,26 @@ class SubscriptionScreen extends StatelessWidget {
     final user = context.read<AuthService>().currentUser;
     if (user == null) return;
     try {
-      final ok = await context
-          .read<BillingService>()
-          .startCheckout(userId: user.uid);
+      await context.read<BillingService>().startCheckout(userId: user.uid);
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            ok
-                ? 'Checkout aberto. Conclua o pagamento no navegador.'
-                : 'Não foi possível abrir o navegador. Tente novamente.',
-          ),
+        const SnackBar(
+          content: Text('Checkout aberto. Conclua o pagamento no navegador.'),
         ),
       );
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao abrir checkout: $e')),
+        SnackBar(
+          content: Text('$e'),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
+        ),
       );
     }
   }
