@@ -204,6 +204,129 @@ class StorageService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Dados de teste ────────────────────────────────────────────────────────
+
+  /// Insere viagens e registros GPS fictícios dos últimos 5 dias.
+  /// Útil para testar o mapa de trajeto sem precisar dirigir.
+  Future<void> seedTestData() async {
+    if (_currentUser == null) return;
+    final uid = _currentUser!.uid;
+    final now = DateTime.now();
+
+    // Rotas em SP: Av. Paulista → Pinheiros → Lapa (ida e volta)
+    const routes = [
+      // Rota A: Paulista → Pinheiros (rumo oeste)
+      _RouteSpec(lat: -23.5613, lon: -46.6565, dLat: -0.0003, dLon: -0.0008),
+      // Rota B: Pinheiros → Lapa (rumo noroeste)
+      _RouteSpec(lat: -23.5640, lon: -46.6940, dLat: -0.0005, dLon: -0.0010),
+      // Rota C: Lapa → Barra Funda (rumo leste)
+      _RouteSpec(lat: -23.5270, lon: -46.6900, dLat: 0.0002, dLon: 0.0012),
+      // Rota D: Barra Funda → Consolação (rumo sul)
+      _RouteSpec(lat: -23.5270, lon: -46.6500, dLat: 0.0008, dLon: -0.0005),
+      // Rota E: Consolação → Itaim (diagonal sul-leste)
+      _RouteSpec(lat: -23.5620, lon: -46.6450, dLat: 0.0006, dLon: 0.0009),
+    ];
+
+    for (int day = 1; day <= 5; day++) {
+      final date = now.subtract(Duration(days: day));
+      final isWeekend = date.weekday == 6 || date.weekday == 7;
+
+      // Manhã: sempre
+      final route = routes[(day - 1) % routes.length];
+      await _insertFakeTrip(
+        uid: uid,
+        tripId: 'test_${date.millisecondsSinceEpoch}_am',
+        start: DateTime(date.year, date.month, date.day, 7, 15 + day),
+        minutes: 22 + day,
+        route: route,
+      );
+
+      // Tarde: dias úteis
+      if (!isWeekend) {
+        final routeReturn = routes[day % routes.length];
+        await _insertFakeTrip(
+          uid: uid,
+          tripId: 'test_${date.millisecondsSinceEpoch}_pm',
+          start: DateTime(date.year, date.month, date.day, 17, 30 + day),
+          minutes: 28 + day,
+          route: routeReturn,
+        );
+      }
+
+      // Fim de semana: um passeio mais longo
+      if (isWeekend) {
+        final routeWeekend = routes[(day + 2) % routes.length];
+        await _insertFakeTrip(
+          uid: uid,
+          tripId: 'test_${date.millisecondsSinceEpoch}_wknd',
+          start: DateTime(date.year, date.month, date.day, 10, 0),
+          minutes: 45,
+          route: routeWeekend,
+        );
+      }
+    }
+
+    await loadTrips();
+  }
+
+  Future<void> _insertFakeTrip({
+    required String uid,
+    required String tripId,
+    required DateTime start,
+    required int minutes,
+    required _RouteSpec route,
+  }) async {
+    double lat = route.lat;
+    double lon = route.lon;
+    double maxSpeed = 0;
+    double totalSpeed = 0;
+
+    final records = <LocalSpeedRecordsCompanion>[];
+    for (int m = 0; m < minutes; m++) {
+      // Velocidade varia entre 20–95 km/h com pequena perturbação
+      final base = 45.0 + (m % 7) * 8.0;
+      final speed = base + (m % 3 - 1) * 5.0;
+      final maxSpeedMin = speed + 10 + (m % 4) * 3.0;
+      if (maxSpeedMin > maxSpeed) maxSpeed = maxSpeedMin;
+      totalSpeed += speed;
+
+      lat += route.dLat + (m % 2 == 0 ? 0.00005 : -0.00003);
+      lon += route.dLon + (m % 3 == 0 ? 0.00004 : -0.00002);
+
+      records.add(LocalSpeedRecordsCompanion(
+        tripId: Value(tripId),
+        userId: Value(uid),
+        recordedAt: Value(start.add(Duration(minutes: m))),
+        speedKmh: Value(speed),
+        maxSpeedKmh: Value(maxSpeedMin),
+        latitude: Value(lat),
+        longitude: Value(lon),
+        accuracyM: const Value(5.0),
+      ));
+    }
+
+    final avgSpeed = totalSpeed / minutes;
+    final endLat = lat;
+    final endLon = lon;
+    final distKm = minutes * avgSpeed / 60.0;
+
+    await _db.upsertTrip(LocalTripsCompanion(
+      id: Value(tripId),
+      userId: Value(uid),
+      startedAt: Value(start),
+      endedAt: Value(start.add(Duration(minutes: minutes))),
+      avgSpeedKmh: Value(avgSpeed),
+      maxSpeedKmh: Value(maxSpeed),
+      distanceKm: Value(distKm),
+      startAddress: const Value('São Paulo, SP'),
+      endAddress: const Value('São Paulo, SP'),
+    ));
+
+    await _db.insertSpeedRecords(records);
+
+    debugPrint('[TestData] Viagem $tripId: $minutes min, avg ${avgSpeed.toStringAsFixed(1)} km/h, lat=${endLat.toStringAsFixed(5)} lon=${endLon.toStringAsFixed(5)}');
+  }
+
   Future<void> clearAllData() async {
     if (_currentUser == null) return;
     final trips = await _db.getTripsForUser(_currentUser!.uid, limit: 9999);
@@ -316,4 +439,17 @@ class StorageService extends ChangeNotifier {
     _db.close();
     super.dispose();
   }
+}
+
+class _RouteSpec {
+  final double lat;
+  final double lon;
+  final double dLat;
+  final double dLon;
+  const _RouteSpec({
+    required this.lat,
+    required this.lon,
+    required this.dLat,
+    required this.dLon,
+  });
 }

@@ -68,6 +68,12 @@ class SettingsScreen extends StatelessWidget {
             onTap: () => _confirmClearHistory(context),
             destructive: true,
           ),
+          _Tile(
+            icon: Icons.science_rounded,
+            title: 'Inserir dados de teste',
+            subtitle: 'Cria viagens fictícias dos últimos 5 dias',
+            onTap: () => _seedTestData(context),
+          ),
           const SizedBox(height: 8),
           const _SectionTitle('Conta'),
           _Tile(
@@ -162,6 +168,43 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
     if (result != null) await loc.setTripTimeout(result.toInt());
+  }
+
+  Future<void> _seedTestData(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Inserir dados de teste'),
+        content: const Text(
+          'Serão criadas viagens fictícias dos últimos 5 dias em São Paulo '
+          'para testar o mapa e o histórico. Continuar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Inserir'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await context.read<StorageService>().seedTestData();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dados de teste inseridos! Veja o Histórico.')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro: $e')),
+      );
+    }
   }
 
   Future<void> _exportData(BuildContext context) async {
