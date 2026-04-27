@@ -1,6 +1,6 @@
 const { Router } = require('express');
-const { createSubscription, cancelSubscription } = require('./mercadopago');
-const { updateUserSubscription } = require('./db');
+const { createSubscription, cancelSubscription, getPreapproval } = require('./mercadopago');
+const { updateUserSubscription, getUserByEmail } = require('./db');
 const { verifyFirebaseToken } = require('./auth');
 const { verifyWebhookSignature } = require('./webhook');
 
@@ -70,29 +70,28 @@ router.post('/webhook', async (req, res) => {
   if (!preapprovalId) return;
 
   try {
-    // Busca o estado atualizado diretamente na API do MP.
-    const mpRes = await fetch(
-      `https://api.mercadopago.com/preapproval/${preapprovalId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const preapproval = await getPreapproval(preapprovalId);
 
-    if (!mpRes.ok) {
-      console.error(`[webhook] MP retornou ${mpRes.status} para ${preapprovalId}`);
-      return;
-    }
+    // Tenta identificar o usuário por external_reference (fluxo legado)
+    // ou pelo email do pagador (fluxo via init_point do plano).
+    let userId = preapproval.external_reference || null;
 
-    const preapproval = await mpRes.json();
-
-    // external_reference é o UID do Firebase que gravamos ao criar a assinatura.
-    const userId = preapproval.external_reference;
     if (!userId) {
-      console.warn('[webhook] preapproval sem external_reference — ignorando.');
-      return;
+      const payerEmail = preapproval.payer_email
+        ?? preapproval.payer?.email
+        ?? null;
+
+      if (!payerEmail) {
+        console.warn('[webhook] Sem external_reference nem payer_email — ignorando.');
+        return;
+      }
+
+      userId = await getUserByEmail(payerEmail);
+
+      if (!userId) {
+        console.warn(`[webhook] Email ${payerEmail} não encontrado no banco — ignorando.`);
+        return;
+      }
     }
 
     const appStatus = _mapMpStatus(preapproval.status);

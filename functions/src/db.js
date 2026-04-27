@@ -38,6 +38,21 @@ async function getOrCreateUser(firebaseUid, email = null) {
 }
 
 /**
+ * Busca o firebase_uid pelo email — usado pelo webhook do MP quando não há
+ * external_reference (fluxo de assinatura via init_point do plano).
+ */
+async function getUserByEmail(email) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('firebase_uid')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (error) throw new Error(`getUserByEmail: ${error.message}`);
+  return data?.firebase_uid ?? null;
+}
+
+/**
  * Atualiza o status de assinatura após webhook do Mercado Pago.
  * status: 'trial' | 'active' | 'past_due' | 'canceled' | 'expired'
  */
@@ -170,6 +185,7 @@ async function insertSpeedRecords(records) {
 
 module.exports = {
   getOrCreateUser,
+  getUserByEmail,
   updateUserSubscription,
   deleteUser,
   createTrip,

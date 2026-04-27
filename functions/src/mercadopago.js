@@ -7,10 +7,11 @@ function authHeaders() {
   };
 }
 
-// ── Criar assinatura recorrente ──────────────────────────────────────────────
-// Cria uma preapproval vinculada ao plano (MP_PLAN_ID) via REST direto.
-// O SDK do MP adiciona campos extras que causam "card_token_id is required".
-async function createSubscription(userId) {
+// ── Checkout via plano ───────────────────────────────────────────────────────
+// Busca o init_point do plano existente.
+// O POST /preapproval exige card_token_id (fluxo de cobrança direta).
+// Para assinatura via checkout do MP, usamos o init_point do próprio plano.
+async function createSubscription(_userId) {
   if (!process.env.MP_ACCESS_TOKEN) {
     throw new Error('MP_ACCESS_TOKEN não configurado no servidor.');
   }
@@ -18,34 +19,23 @@ async function createSubscription(userId) {
     throw new Error('MP_PLAN_ID não configurado. Execute scripts/create_mp_plan.js primeiro.');
   }
 
-  const body = {
-    preapproval_plan_id: process.env.MP_PLAN_ID,
-    reason: 'Tracking Velocidade Premium — mensal',
-    external_reference: userId,
-    back_url: process.env.MP_BACK_URL || 'https://trackingvelocidade.com.br/callback',
-  };
-
-  const res = await fetch(`${MP_API}/preapproval`, {
-    method: 'POST',
+  const res = await fetch(`${MP_API}/preapproval_plan/${process.env.MP_PLAN_ID}`, {
     headers: authHeaders(),
-    body: JSON.stringify(body),
   });
 
-  const data = await res.json();
+  const plan = await res.json();
 
   if (!res.ok) {
-    const detail = data.message || data.error || JSON.stringify(data);
-    throw new Error(`MP ${res.status}: ${detail}`);
+    throw new Error(`MP plano ${res.status}: ${plan.message || JSON.stringify(plan)}`);
   }
 
-  if (!data.init_point) {
-    throw new Error(`MP não retornou init_point. Resposta: ${JSON.stringify(data)}`);
+  // O plano retorna init_point — URL do checkout onde o usuário assina.
+  const initPoint = plan.init_point;
+  if (!initPoint) {
+    throw new Error(`Plano sem init_point. Status do plano: ${plan.status}. Verifique se o plano está ativo no painel do MP.`);
   }
 
-  return {
-    initPoint: data.init_point,
-    preapprovalId: data.id,
-  };
+  return { initPoint, preapprovalId: null };
 }
 
 // ── Cancelar assinatura ──────────────────────────────────────────────────────
@@ -62,4 +52,13 @@ async function cancelSubscription(preapprovalId) {
   }
 }
 
-module.exports = { createSubscription, cancelSubscription };
+// ── Buscar preapproval ───────────────────────────────────────────────────────
+async function getPreapproval(preapprovalId) {
+  const res = await fetch(`${MP_API}/preapproval/${preapprovalId}`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`MP getPreapproval ${res.status}`);
+  return res.json();
+}
+
+module.exports = { createSubscription, cancelSubscription, getPreapproval };
