@@ -9,6 +9,7 @@ import 'package:permission_handler/permission_handler.dart';
 // Gerado pelo `flutterfire configure`
 import 'firebase_options.dart';
 
+import 'models/app_user.dart';
 import 'services/auth_service.dart';
 import 'services/background_location.dart';
 import 'services/billing_service.dart';
@@ -77,6 +78,7 @@ class _Root extends StatefulWidget {
 class _RootState extends State<_Root> {
   /// null = ainda checando, true = concedida, false = não concedida
   bool? _hasPermission;
+  String? _initializedUid;
 
   @override
   void initState() {
@@ -97,6 +99,14 @@ class _RootState extends State<_Root> {
     if (mounted) setState(() => _hasPermission = true);
   }
 
+  /// Inicializa StorageService e LocationService sempre que o usuário mudar.
+  void _initializeServicesForUser(AppUser user) {
+    if (_initializedUid == user.uid) return;
+    _initializedUid = user.uid;
+    context.read<StorageService>().initialize(user);
+    context.read<LocationService>().updateUser(user);
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
@@ -110,8 +120,12 @@ class _RootState extends State<_Root> {
 
     // Não autenticado → onboarding
     if (!auth.isAuthenticated) {
+      _initializedUid = null;
       return const OnboardingScreen();
     }
+
+    // Inicializa serviços para o usuário logado (idempotente — executa 1x por uid)
+    _initializeServicesForUser(auth.currentUser!);
 
     // Autenticado mas sem permissão → tela de permissões
     if (!_hasPermission!) {
