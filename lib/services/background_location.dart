@@ -19,6 +19,8 @@ Future<void> initializeBackgroundService() async {
       initialNotificationTitle: 'Tracking Velocidade',
       initialNotificationContent: 'Monitorando sua velocidade…',
       foregroundServiceNotificationId: 888,
+      // Android 14+: deve bater com foregroundServiceType="location" no manifest
+      foregroundServiceTypes: [AndroidForegroundType.location],
     ),
     iosConfiguration: IosConfiguration(
       autoStart: false,
