@@ -9,7 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/feature_flags.dart';
 import '../models/app_user.dart';
+import '../models/driver_score.dart';
 import '../models/speed_record.dart';
+import '../services/score_service.dart';
 import '../utils/hash_utils.dart';
 
 /// Gerencia o tracking de velocidade via GPS.
@@ -144,6 +146,14 @@ class LocationService extends ChangeNotifier {
   DateTime _toNtpTime(DateTime deviceTime) =>
       deviceTime.add(_ntpOffset).toUtc();
 
+  // ── Score ao vivo ────────────────────────────────────────────────────────
+  /// Score parcial calculado em tempo real durante a viagem ativa.
+  DriverScore get currentTripScore => ScoreService.live(
+        currentMaxSpeedKmh: _tripMaxSpeed,
+        currentAvgSpeedKmh: todayAvgSpeedKmh,
+        elapsedMinutes: _todayActiveTime.inMinutes,
+      );
+
   // ── Agregação por minuto ─────────────────────────────────────────────────
   final List<double> _minuteSpeeds = [];
   double _minuteMaxSpeed = 0;
@@ -159,6 +169,18 @@ class LocationService extends ChangeNotifier {
   /// Emite um [SpeedRecord] ao final de cada janela de 1 minuto acima do
   /// limiar. Consuma este stream no StorageService para persistir os dados.
   Stream<SpeedRecord> get speedRecords => _recordCtrl.stream;
+
+  // ── Ciclo de vida das viagens ─────────────────────────────────────────────
+  final StreamController<TripStartedEvent> _tripStartedCtrl =
+      StreamController<TripStartedEvent>.broadcast();
+  final StreamController<TripEndedEvent> _tripEndedCtrl =
+      StreamController<TripEndedEvent>.broadcast();
+
+  /// Emitido quando uma nova viagem começa (velocidade > limiar após inatividade).
+  Stream<TripStartedEvent> get tripStarted => _tripStartedCtrl.stream;
+
+  /// Emitido quando uma viagem é encerrada (timeout de inatividade).
+  Stream<TripEndedEvent> get tripEnded => _tripEndedCtrl.stream;
 
   // ── Comunicação com o isolate de background ──────────────────────────────
   StreamSubscription<Map<String, dynamic>?>? _updateSub;
@@ -271,7 +293,8 @@ class LocationService extends ChangeNotifier {
   }
 
   void _startTrip(double lat, double lon, DateTime ts) {
-    _activeTripId = 'trip_${ts.millisecondsSinceEpoch}';
+    final tripId = 'trip_${ts.millisecondsSinceEpoch}';
+    _activeTripId = tripId;
     _tripStartedAt = ts;
     _tripMaxSpeed = 0;
     _tripTotalDistanceKm = 0;
@@ -281,6 +304,13 @@ class LocationService extends ChangeNotifier {
     _minuteDistanceKm = 0;
     _prevLat = lat;
     _prevLon = lon;
+
+    _tripStartedCtrl.add(TripStartedEvent(
+      tripId: tripId,
+      startedAt: ts,
+      latitude: lat,
+      longitude: lon,
+    ));
   }
 
   void _accumulate(
@@ -351,6 +381,33 @@ class LocationService extends ChangeNotifier {
     if (_minuteSpeeds.isNotEmpty) {
       _flushMinute(_currentLat, _currentLon, 0, ts);
     }
+
+    if (_activeTripId != null && _tripStartedAt != null) {
+      // Duração real da viagem em minutos.
+      final durationMin = ts.difference(_tripStartedAt!).inMinutes;
+
+      // Velocidade média: distância / horas.
+      final hours = ts.difference(_tripStartedAt!).inSeconds / 3600.0;
+      final avgSpeed = hours > 0 ? _tripTotalDistanceKm / hours : 0.0;
+
+      // Calcula o score final da viagem.
+      final score = ScoreService.fromSummary(
+        maxSpeedKmh: _tripMaxSpeed,
+        avgSpeedKmh: avgSpeed,
+        durationMinutes: durationMin,
+      );
+
+      _tripEndedCtrl.add(TripEndedEvent(
+        tripId: _activeTripId!,
+        startedAt: _tripStartedAt!,
+        endedAt: ts,
+        avgSpeedKmh: avgSpeed,
+        maxSpeedKmh: _tripMaxSpeed,
+        distanceKm: _tripTotalDistanceKm,
+        score: score,
+      ));
+    }
+
     _activeTripId = null;
     _tripStartedAt = null;
     _lastAboveThresholdAt = null;
@@ -364,6 +421,44 @@ class LocationService extends ChangeNotifier {
   void dispose() {
     _updateSub?.cancel();
     _recordCtrl.close();
+    _tripStartedCtrl.close();
+    _tripEndedCtrl.close();
     super.dispose();
   }
+}
+
+// ── Eventos de ciclo de vida da viagem ────────────────────────────────────────
+
+class TripStartedEvent {
+  final String tripId;
+  final DateTime startedAt;
+  final double latitude;
+  final double longitude;
+
+  const TripStartedEvent({
+    required this.tripId,
+    required this.startedAt,
+    required this.latitude,
+    required this.longitude,
+  });
+}
+
+class TripEndedEvent {
+  final String tripId;
+  final DateTime startedAt;
+  final DateTime endedAt;
+  final double avgSpeedKmh;
+  final double maxSpeedKmh;
+  final double distanceKm;
+  final DriverScore score;
+
+  const TripEndedEvent({
+    required this.tripId,
+    required this.startedAt,
+    required this.endedAt,
+    required this.avgSpeedKmh,
+    required this.maxSpeedKmh,
+    required this.distanceKm,
+    required this.score,
+  });
 }

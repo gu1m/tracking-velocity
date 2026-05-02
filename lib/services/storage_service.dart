@@ -9,8 +9,10 @@ import '../config/api_config.dart';
 import '../config/feature_flags.dart';
 import '../database/app_database.dart';
 import '../models/app_user.dart';
+import '../models/driver_score.dart';
 import '../models/speed_record.dart';
 import '../models/trip.dart';
+import '../services/score_service.dart';
 import '../utils/hash_utils.dart';
 
 /// Persistência local (Drift/SQLite) + sincronização com backend Railway.
@@ -129,6 +131,7 @@ class StorageService extends ChangeNotifier {
     double? distanceKm,
     String? startAddress,
     String? endAddress,
+    int? driverScore,
   }) async {
     await _db.upsertTrip(LocalTripsCompanion(
       id: Value(tripId),
@@ -140,6 +143,7 @@ class StorageService extends ChangeNotifier {
       distanceKm: Value(distanceKm),
       startAddress: Value(startAddress),
       endAddress: Value(endAddress),
+      driverScore: Value(driverScore?.toDouble()),
     ));
 
     // Enfileira para sync com backend
@@ -426,17 +430,40 @@ class StorageService extends ChangeNotifier {
 
   // ── Converters ────────────────────────────────────────────────────────────
 
-  Trip _rowToTrip(LocalTrip row) => Trip(
-        id: row.id,
-        startedAt: row.startedAt,
-        endedAt: row.endedAt,
-        avgSpeedKmh: row.avgSpeedKmh ?? 0,
-        maxSpeedKmh: row.maxSpeedKmh ?? 0,
-        distanceKm: row.distanceKm ?? 0,
-        startAddress: row.startAddress ?? '',
-        endAddress: row.endAddress,
-        records: const [],
+  Trip _rowToTrip(LocalTrip row) {
+    // Reconstrói o DriverScore a partir do valor armazenado.
+    // Se não há score salvo (viagens antigas ou em andamento), computa agora.
+    DriverScore? score;
+    if (row.driverScore != null) {
+      final s = row.driverScore!.round().clamp(0, 100);
+      score = DriverScore(
+        value: s,
+        category: ScoreCategoryX.fromValue(s),
+        maxSpeed: row.maxSpeedKmh ?? 0,
+        avgSpeed: row.avgSpeedKmh ?? 0,
       );
+    } else if (row.endedAt != null && (row.maxSpeedKmh ?? 0) > 0) {
+      final duration = row.endedAt!.difference(row.startedAt).inMinutes;
+      score = ScoreService.fromSummary(
+        maxSpeedKmh: row.maxSpeedKmh ?? 0,
+        avgSpeedKmh: row.avgSpeedKmh ?? 0,
+        durationMinutes: duration,
+      );
+    }
+
+    return Trip(
+      id: row.id,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+      avgSpeedKmh: row.avgSpeedKmh ?? 0,
+      maxSpeedKmh: row.maxSpeedKmh ?? 0,
+      distanceKm: row.distanceKm ?? 0,
+      startAddress: row.startAddress ?? '',
+      endAddress: row.endAddress,
+      records: const [],
+      driverScore: score,
+    );
+  }
 
   SpeedRecord _rowToRecord(LocalSpeedRecord row) => SpeedRecord(
         tripId: row.tripId,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -80,10 +82,30 @@ class _RootState extends State<_Root> {
   bool? _hasPermission;
   String? _initializedUid;
 
+  // Subscriptions do ciclo de vida das viagens — canceladas no logout.
+  StreamSubscription<dynamic>? _tripStartSub;
+  StreamSubscription<dynamic>? _tripEndSub;
+  StreamSubscription<dynamic>? _recordSub;
+
   @override
   void initState() {
     super.initState();
     _checkPermission();
+  }
+
+  @override
+  void dispose() {
+    _cancelStreamSubs();
+    super.dispose();
+  }
+
+  void _cancelStreamSubs() {
+    _tripStartSub?.cancel();
+    _tripEndSub?.cancel();
+    _recordSub?.cancel();
+    _tripStartSub = null;
+    _tripEndSub = null;
+    _recordSub = null;
   }
 
   Future<void> _checkPermission() async {
@@ -100,11 +122,50 @@ class _RootState extends State<_Root> {
   }
 
   /// Inicializa StorageService e LocationService sempre que o usuário mudar.
+  /// Também conecta os streams de ciclo de vida da viagem ao StorageService.
   void _initializeServicesForUser(AppUser user) {
     if (_initializedUid == user.uid) return;
     _initializedUid = user.uid;
-    context.read<StorageService>().initialize(user);
-    context.read<LocationService>().updateUser(user);
+
+    final storage = context.read<StorageService>();
+    final location = context.read<LocationService>();
+
+    storage.initialize(user);
+    location.updateUser(user);
+
+    // Cancela subs anteriores (troca de conta).
+    _cancelStreamSubs();
+
+    // 1. Cada SpeedRecord emitido é salvo localmente.
+    _recordSub = location.speedRecords.listen((record) {
+      storage.saveSpeedRecords([record]);
+    });
+
+    // 2. Início de viagem → cria o registro no banco.
+    _tripStartSub = location.tripStarted.listen((e) {
+      storage.saveTrip(
+        tripId: e.tripId,
+        userId: user.uid,
+        startedAt: e.startedAt,
+        startAddress: 'Em andamento…',
+      );
+    });
+
+    // 3. Fim de viagem → atualiza com métricas finais e score.
+    _tripEndSub = location.tripEnded.listen((e) {
+      storage.saveTrip(
+        tripId: e.tripId,
+        userId: user.uid,
+        startedAt: e.startedAt,
+        endedAt: e.endedAt,
+        avgSpeedKmh: e.avgSpeedKmh,
+        maxSpeedKmh: e.maxSpeedKmh,
+        distanceKm: e.distanceKm,
+        startAddress: 'São Paulo, SP',
+        endAddress: 'São Paulo, SP',
+        driverScore: e.score.value,
+      );
+    });
   }
 
   @override
@@ -120,7 +181,10 @@ class _RootState extends State<_Root> {
 
     // Não autenticado → onboarding
     if (!auth.isAuthenticated) {
-      _initializedUid = null;
+      if (_initializedUid != null) {
+        _initializedUid = null;
+        _cancelStreamSubs();
+      }
       return const OnboardingScreen();
     }
 

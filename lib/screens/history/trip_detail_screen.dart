@@ -1,9 +1,12 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../models/driver_score.dart';
 import '../../models/trip.dart';
 import '../../services/export_service.dart';
+import '../../services/score_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/score_gauge.dart';
 
 /// Tela de detalhes de uma viagem específica.
 /// Mostra:
@@ -80,6 +83,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           ),
           const SizedBox(height: 24),
           _RouteCard(trip: t),
+          const SizedBox(height: 24),
+          _ScoreCard(trip: t),
           const SizedBox(height: 24),
           const Text('Velocidade no tempo',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
@@ -170,6 +175,141 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
+  }
+}
+
+/// Card de pontuação do condutor na tela de detalhes da viagem.
+class _ScoreCard extends StatelessWidget {
+  final Trip trip;
+  const _ScoreCard({required this.trip});
+
+  @override
+  Widget build(BuildContext context) {
+    // Usa o score salvo na viagem ou recalcula a partir dos records disponíveis.
+    final score = trip.driverScore ??
+        (trip.records.isNotEmpty
+            ? ScoreService.fromRecords(
+                records: trip.records,
+                maxSpeedKmh: trip.maxSpeedKmh,
+                avgSpeedKmh: trip.avgSpeedKmh,
+              )
+            : ScoreService.fromSummary(
+                maxSpeedKmh: trip.maxSpeedKmh,
+                avgSpeedKmh: trip.avgSpeedKmh,
+                durationMinutes: trip.duration.inMinutes,
+              ));
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.shield_rounded,
+                  color: AppColors.primary, size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Pontuação do condutor',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ScoreGauge(score: score.value, size: 120),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _breakdown(
+                      label: 'Categoria',
+                      value: '${score.category.emoji} ${score.category.label}',
+                      color: score.category.color,
+                    ),
+                    const SizedBox(height: 8),
+                    _breakdown(
+                      label: 'Vel. máxima registrada',
+                      value: '${score.maxSpeed.toStringAsFixed(0)} km/h',
+                      color: score.maxSpeed > 100
+                          ? AppColors.danger
+                          : AppColors.success,
+                    ),
+                    const SizedBox(height: 8),
+                    _breakdown(
+                      label: 'Vel. média',
+                      value: '${score.avgSpeed.toStringAsFixed(0)} km/h',
+                      color: AppColors.primary,
+                    ),
+                    if (score.violations > 0) ...[
+                      const SizedBox(height: 8),
+                      _breakdown(
+                        label: 'Minutos acima de 100',
+                        value: '${score.violations} min',
+                        color: AppColors.accent,
+                      ),
+                    ],
+                    if (score.severeViolations > 0) ...[
+                      const SizedBox(height: 8),
+                      _breakdown(
+                        label: 'Minutos acima de 130',
+                        value: '${score.severeViolations} min',
+                        color: AppColors.danger,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            score.value >= 90
+                ? 'Excelente! Você dirigiu de forma segura e responsável.'
+                : score.value >= 75
+                    ? 'Boa condução. Mantenha a velocidade controlada para pontuar mais.'
+                    : score.value >= 60
+                        ? 'Condução regular. Reduza a velocidade máxima para melhorar.'
+                        : 'Atenção: foram registradas velocidades acima do recomendado.',
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _breakdown({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: AppColors.textSecondary,
+            )),
+        Text(value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: color,
+            )),
+      ],
+    );
   }
 }
 

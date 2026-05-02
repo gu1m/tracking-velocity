@@ -1,3 +1,4 @@
+import 'driver_score.dart';
 import 'speed_record.dart';
 
 /// Uma viagem é uma sequência contínua de registros de velocidade
@@ -16,6 +17,9 @@ class Trip {
   final String startAddress;
   final String? endAddress;
   final List<SpeedRecord> records;
+  /// Pontuação de condução calculada ao encerrar a viagem (Fase 2).
+  /// null = viagem ainda em andamento ou dados anteriores à Fase 2.
+  final DriverScore? driverScore;
 
   const Trip({
     required this.id,
@@ -27,6 +31,7 @@ class Trip {
     required this.startAddress,
     this.endAddress,
     this.records = const [],
+    this.driverScore,
   });
 
   Duration get duration =>

@@ -61,6 +61,12 @@ class $LocalTripsTable extends LocalTrips
   late final GeneratedColumn<String> endAddress = GeneratedColumn<String>(
       'end_address', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _driverScoreMeta =
+      const VerificationMeta('driverScore');
+  @override
+  late final GeneratedColumn<double> driverScore = GeneratedColumn<double>(
+      'driver_score', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -80,6 +86,7 @@ class $LocalTripsTable extends LocalTrips
         distanceKm,
         startAddress,
         endAddress,
+        driverScore,
         createdAt
       ];
   @override
@@ -143,6 +150,12 @@ class $LocalTripsTable extends LocalTrips
           endAddress.isAcceptableOrUnknown(
               data['end_address']!, _endAddressMeta));
     }
+    if (data.containsKey('driver_score')) {
+      context.handle(
+          _driverScoreMeta,
+          driverScore.isAcceptableOrUnknown(
+              data['driver_score']!, _driverScoreMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -174,6 +187,8 @@ class $LocalTripsTable extends LocalTrips
           .read(DriftSqlType.string, data['${effectivePrefix}start_address']),
       endAddress: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}end_address']),
+      driverScore: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}driver_score']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
@@ -195,6 +210,9 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
   final double? distanceKm;
   final String? startAddress;
   final String? endAddress;
+
+  /// Pontuação do condutor 0–100 calculada ao encerrar a viagem (Fase 2).
+  final double? driverScore;
   final DateTime createdAt;
   const LocalTrip(
       {required this.id,
@@ -206,6 +224,7 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
       this.distanceKm,
       this.startAddress,
       this.endAddress,
+      this.driverScore,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -230,6 +249,9 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
     }
     if (!nullToAbsent || endAddress != null) {
       map['end_address'] = Variable<String>(endAddress);
+    }
+    if (!nullToAbsent || driverScore != null) {
+      map['driver_score'] = Variable<double>(driverScore);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -258,6 +280,9 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
       endAddress: endAddress == null && nullToAbsent
           ? const Value.absent()
           : Value(endAddress),
+      driverScore: driverScore == null && nullToAbsent
+          ? const Value.absent()
+          : Value(driverScore),
       createdAt: Value(createdAt),
     );
   }
@@ -275,6 +300,7 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
       distanceKm: serializer.fromJson<double?>(json['distanceKm']),
       startAddress: serializer.fromJson<String?>(json['startAddress']),
       endAddress: serializer.fromJson<String?>(json['endAddress']),
+      driverScore: serializer.fromJson<double?>(json['driverScore']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -291,6 +317,7 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
       'distanceKm': serializer.toJson<double?>(distanceKm),
       'startAddress': serializer.toJson<String?>(startAddress),
       'endAddress': serializer.toJson<String?>(endAddress),
+      'driverScore': serializer.toJson<double?>(driverScore),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -305,6 +332,7 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
           Value<double?> distanceKm = const Value.absent(),
           Value<String?> startAddress = const Value.absent(),
           Value<String?> endAddress = const Value.absent(),
+          Value<double?> driverScore = const Value.absent(),
           DateTime? createdAt}) =>
       LocalTrip(
         id: id ?? this.id,
@@ -317,6 +345,7 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
         startAddress:
             startAddress.present ? startAddress.value : this.startAddress,
         endAddress: endAddress.present ? endAddress.value : this.endAddress,
+        driverScore: driverScore.present ? driverScore.value : this.driverScore,
         createdAt: createdAt ?? this.createdAt,
       );
   LocalTrip copyWithCompanion(LocalTripsCompanion data) {
@@ -336,6 +365,8 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
           : this.startAddress,
       endAddress:
           data.endAddress.present ? data.endAddress.value : this.endAddress,
+      driverScore:
+          data.driverScore.present ? data.driverScore.value : this.driverScore,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -352,14 +383,25 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
           ..write('distanceKm: $distanceKm, ')
           ..write('startAddress: $startAddress, ')
           ..write('endAddress: $endAddress, ')
+          ..write('driverScore: $driverScore, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, userId, startedAt, endedAt, avgSpeedKmh,
-      maxSpeedKmh, distanceKm, startAddress, endAddress, createdAt);
+  int get hashCode => Object.hash(
+      id,
+      userId,
+      startedAt,
+      endedAt,
+      avgSpeedKmh,
+      maxSpeedKmh,
+      distanceKm,
+      startAddress,
+      endAddress,
+      driverScore,
+      createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -373,6 +415,7 @@ class LocalTrip extends DataClass implements Insertable<LocalTrip> {
           other.distanceKm == this.distanceKm &&
           other.startAddress == this.startAddress &&
           other.endAddress == this.endAddress &&
+          other.driverScore == this.driverScore &&
           other.createdAt == this.createdAt);
 }
 
@@ -386,6 +429,7 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
   final Value<double?> distanceKm;
   final Value<String?> startAddress;
   final Value<String?> endAddress;
+  final Value<double?> driverScore;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const LocalTripsCompanion({
@@ -398,6 +442,7 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
     this.distanceKm = const Value.absent(),
     this.startAddress = const Value.absent(),
     this.endAddress = const Value.absent(),
+    this.driverScore = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -411,6 +456,7 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
     this.distanceKm = const Value.absent(),
     this.startAddress = const Value.absent(),
     this.endAddress = const Value.absent(),
+    this.driverScore = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -426,6 +472,7 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
     Expression<double>? distanceKm,
     Expression<String>? startAddress,
     Expression<String>? endAddress,
+    Expression<double>? driverScore,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -439,6 +486,7 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
       if (distanceKm != null) 'distance_km': distanceKm,
       if (startAddress != null) 'start_address': startAddress,
       if (endAddress != null) 'end_address': endAddress,
+      if (driverScore != null) 'driver_score': driverScore,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -454,6 +502,7 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
       Value<double?>? distanceKm,
       Value<String?>? startAddress,
       Value<String?>? endAddress,
+      Value<double?>? driverScore,
       Value<DateTime>? createdAt,
       Value<int>? rowid}) {
     return LocalTripsCompanion(
@@ -466,6 +515,7 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
       distanceKm: distanceKm ?? this.distanceKm,
       startAddress: startAddress ?? this.startAddress,
       endAddress: endAddress ?? this.endAddress,
+      driverScore: driverScore ?? this.driverScore,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -501,6 +551,9 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
     if (endAddress.present) {
       map['end_address'] = Variable<String>(endAddress.value);
     }
+    if (driverScore.present) {
+      map['driver_score'] = Variable<double>(driverScore.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -522,6 +575,7 @@ class LocalTripsCompanion extends UpdateCompanion<LocalTrip> {
           ..write('distanceKm: $distanceKm, ')
           ..write('startAddress: $startAddress, ')
           ..write('endAddress: $endAddress, ')
+          ..write('driverScore: $driverScore, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1441,6 +1495,7 @@ typedef $$LocalTripsTableCreateCompanionBuilder = LocalTripsCompanion Function({
   Value<double?> distanceKm,
   Value<String?> startAddress,
   Value<String?> endAddress,
+  Value<double?> driverScore,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -1454,6 +1509,7 @@ typedef $$LocalTripsTableUpdateCompanionBuilder = LocalTripsCompanion Function({
   Value<double?> distanceKm,
   Value<String?> startAddress,
   Value<String?> endAddress,
+  Value<double?> driverScore,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -1493,6 +1549,9 @@ class $$LocalTripsTableFilterComposer
 
   ColumnFilters<String> get endAddress => $composableBuilder(
       column: $table.endAddress, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get driverScore => $composableBuilder(
+      column: $table.driverScore, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -1535,6 +1594,9 @@ class $$LocalTripsTableOrderingComposer
   ColumnOrderings<String> get endAddress => $composableBuilder(
       column: $table.endAddress, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get driverScore => $composableBuilder(
+      column: $table.driverScore, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -1575,6 +1637,9 @@ class $$LocalTripsTableAnnotationComposer
   GeneratedColumn<String> get endAddress => $composableBuilder(
       column: $table.endAddress, builder: (column) => column);
 
+  GeneratedColumn<double> get driverScore => $composableBuilder(
+      column: $table.driverScore, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
@@ -1611,6 +1676,7 @@ class $$LocalTripsTableTableManager extends RootTableManager<
             Value<double?> distanceKm = const Value.absent(),
             Value<String?> startAddress = const Value.absent(),
             Value<String?> endAddress = const Value.absent(),
+            Value<double?> driverScore = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -1624,6 +1690,7 @@ class $$LocalTripsTableTableManager extends RootTableManager<
             distanceKm: distanceKm,
             startAddress: startAddress,
             endAddress: endAddress,
+            driverScore: driverScore,
             createdAt: createdAt,
             rowid: rowid,
           ),
@@ -1637,6 +1704,7 @@ class $$LocalTripsTableTableManager extends RootTableManager<
             Value<double?> distanceKm = const Value.absent(),
             Value<String?> startAddress = const Value.absent(),
             Value<String?> endAddress = const Value.absent(),
+            Value<double?> driverScore = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -1650,6 +1718,7 @@ class $$LocalTripsTableTableManager extends RootTableManager<
             distanceKm: distanceKm,
             startAddress: startAddress,
             endAddress: endAddress,
+            driverScore: driverScore,
             createdAt: createdAt,
             rowid: rowid,
           ),

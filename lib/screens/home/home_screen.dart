@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/score_gauge.dart';
 import '../../widgets/speed_dial.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -148,6 +149,10 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
+                // ── Score do condutor ─────────────────────────────────────
+                if (loc.isServiceRunning)
+                  _ScoreCard(loc: loc),
+                const SizedBox(height: 24),
                 Card(
                   color: AppColors.primaryLight,
                   shape: RoundedRectangleBorder(
@@ -256,6 +261,167 @@ class _StatusCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Card de pontuação do condutor — exibe o gauge ao vivo durante o tracking.
+class _ScoreCard extends StatelessWidget {
+  final LocationService loc;
+  const _ScoreCard({required this.loc});
+
+  @override
+  Widget build(BuildContext context) {
+    final score = loc.currentTripScore;
+    final isActive = loc.isTrackingActive;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.shield_rounded,
+                  color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Pontuação do condutor',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              if (isActive)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Ao vivo',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.success,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ScoreGauge(score: score.value, size: 130),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ScoreDetail(
+                      label: 'Velocidade máxima',
+                      value: '${loc.todayMaxSpeedKmh.toStringAsFixed(0)} km/h',
+                      icon: Icons.speed_rounded,
+                      color: loc.todayMaxSpeedKmh > 100
+                          ? AppColors.danger
+                          : AppColors.success,
+                    ),
+                    const SizedBox(height: 10),
+                    _ScoreDetail(
+                      label: 'Velocidade média',
+                      value: '${loc.todayAvgSpeedKmh.toStringAsFixed(0)} km/h',
+                      icon: Icons.av_timer_rounded,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 10),
+                    _ScoreDetail(
+                      label: 'Tempo em movimento',
+                      value:
+                          '${loc.todayActiveTime.inHours}h ${loc.todayActiveTime.inMinutes.remainder(60)}min',
+                      icon: Icons.timer_rounded,
+                      color: AppColors.accent,
+                    ),
+                    if (score.violations > 0) ...[
+                      const SizedBox(height: 10),
+                      _ScoreDetail(
+                        label: 'Infrações acima de 100',
+                        value: '${score.violations} min',
+                        icon: Icons.warning_amber_rounded,
+                        color: AppColors.danger,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (!isActive && loc.isServiceRunning) ...[
+            const SizedBox(height: 12),
+            Text(
+              'O score será atualizado assim que você iniciar uma nova viagem.',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ScoreDetail extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _ScoreDetail({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

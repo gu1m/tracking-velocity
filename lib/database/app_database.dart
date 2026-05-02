@@ -14,6 +14,8 @@ class LocalTrips extends Table {
   RealColumn get distanceKm => real().nullable()();
   TextColumn get startAddress => text().nullable()();
   TextColumn get endAddress => text().nullable()();
+  /// Pontuação do condutor 0–100 calculada ao encerrar a viagem (Fase 2).
+  RealColumn get driverScore => real().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
   @override
@@ -61,15 +63,19 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openDatabase());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /// Migrações incrementais:
   ///  v1 → v2: adiciona coluna `hash` à tabela local_speed_records
+  ///  v2 → v3: adiciona coluna `driver_score` à tabela local_trips
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(localSpeedRecords, localSpeedRecords.hash);
+          }
+          if (from < 3) {
+            await m.addColumn(localTrips, localTrips.driverScore);
           }
         },
       );
