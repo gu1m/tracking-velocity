@@ -590,6 +590,11 @@ class $LocalSpeedRecordsTable extends LocalSpeedRecords
   late final GeneratedColumn<double> accuracyM = GeneratedColumn<double>(
       'accuracy_m', aliasedName, true,
       type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _hashMeta = const VerificationMeta('hash');
+  @override
+  late final GeneratedColumn<String> hash = GeneratedColumn<String>(
+      'hash', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -609,6 +614,7 @@ class $LocalSpeedRecordsTable extends LocalSpeedRecords
         latitude,
         longitude,
         accuracyM,
+        hash,
         createdAt
       ];
   @override
@@ -674,6 +680,10 @@ class $LocalSpeedRecordsTable extends LocalSpeedRecords
       context.handle(_accuracyMMeta,
           accuracyM.isAcceptableOrUnknown(data['accuracy_m']!, _accuracyMMeta));
     }
+    if (data.containsKey('hash')) {
+      context.handle(
+          _hashMeta, hash.isAcceptableOrUnknown(data['hash']!, _hashMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -705,6 +715,8 @@ class $LocalSpeedRecordsTable extends LocalSpeedRecords
           .read(DriftSqlType.double, data['${effectivePrefix}longitude'])!,
       accuracyM: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}accuracy_m']),
+      hash: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}hash']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
@@ -727,6 +739,9 @@ class LocalSpeedRecord extends DataClass
   final double latitude;
   final double longitude;
   final double? accuracyM;
+
+  /// SHA-256 de integridade — adicionado na migração v2.
+  final String? hash;
   final DateTime createdAt;
   const LocalSpeedRecord(
       {required this.id,
@@ -738,6 +753,7 @@ class LocalSpeedRecord extends DataClass
       required this.latitude,
       required this.longitude,
       this.accuracyM,
+      this.hash,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -752,6 +768,9 @@ class LocalSpeedRecord extends DataClass
     map['longitude'] = Variable<double>(longitude);
     if (!nullToAbsent || accuracyM != null) {
       map['accuracy_m'] = Variable<double>(accuracyM);
+    }
+    if (!nullToAbsent || hash != null) {
+      map['hash'] = Variable<String>(hash);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -770,6 +789,7 @@ class LocalSpeedRecord extends DataClass
       accuracyM: accuracyM == null && nullToAbsent
           ? const Value.absent()
           : Value(accuracyM),
+      hash: hash == null && nullToAbsent ? const Value.absent() : Value(hash),
       createdAt: Value(createdAt),
     );
   }
@@ -787,6 +807,7 @@ class LocalSpeedRecord extends DataClass
       latitude: serializer.fromJson<double>(json['latitude']),
       longitude: serializer.fromJson<double>(json['longitude']),
       accuracyM: serializer.fromJson<double?>(json['accuracyM']),
+      hash: serializer.fromJson<String?>(json['hash']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -803,6 +824,7 @@ class LocalSpeedRecord extends DataClass
       'latitude': serializer.toJson<double>(latitude),
       'longitude': serializer.toJson<double>(longitude),
       'accuracyM': serializer.toJson<double?>(accuracyM),
+      'hash': serializer.toJson<String?>(hash),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -817,6 +839,7 @@ class LocalSpeedRecord extends DataClass
           double? latitude,
           double? longitude,
           Value<double?> accuracyM = const Value.absent(),
+          Value<String?> hash = const Value.absent(),
           DateTime? createdAt}) =>
       LocalSpeedRecord(
         id: id ?? this.id,
@@ -828,6 +851,7 @@ class LocalSpeedRecord extends DataClass
         latitude: latitude ?? this.latitude,
         longitude: longitude ?? this.longitude,
         accuracyM: accuracyM.present ? accuracyM.value : this.accuracyM,
+        hash: hash.present ? hash.value : this.hash,
         createdAt: createdAt ?? this.createdAt,
       );
   LocalSpeedRecord copyWithCompanion(LocalSpeedRecordsCompanion data) {
@@ -843,6 +867,7 @@ class LocalSpeedRecord extends DataClass
       latitude: data.latitude.present ? data.latitude.value : this.latitude,
       longitude: data.longitude.present ? data.longitude.value : this.longitude,
       accuracyM: data.accuracyM.present ? data.accuracyM.value : this.accuracyM,
+      hash: data.hash.present ? data.hash.value : this.hash,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -859,6 +884,7 @@ class LocalSpeedRecord extends DataClass
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('accuracyM: $accuracyM, ')
+          ..write('hash: $hash, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -866,7 +892,7 @@ class LocalSpeedRecord extends DataClass
 
   @override
   int get hashCode => Object.hash(id, tripId, userId, recordedAt, speedKmh,
-      maxSpeedKmh, latitude, longitude, accuracyM, createdAt);
+      maxSpeedKmh, latitude, longitude, accuracyM, hash, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -880,6 +906,7 @@ class LocalSpeedRecord extends DataClass
           other.latitude == this.latitude &&
           other.longitude == this.longitude &&
           other.accuracyM == this.accuracyM &&
+          other.hash == this.hash &&
           other.createdAt == this.createdAt);
 }
 
@@ -893,6 +920,7 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
   final Value<double> latitude;
   final Value<double> longitude;
   final Value<double?> accuracyM;
+  final Value<String?> hash;
   final Value<DateTime> createdAt;
   const LocalSpeedRecordsCompanion({
     this.id = const Value.absent(),
@@ -904,6 +932,7 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
     this.latitude = const Value.absent(),
     this.longitude = const Value.absent(),
     this.accuracyM = const Value.absent(),
+    this.hash = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   LocalSpeedRecordsCompanion.insert({
@@ -916,6 +945,7 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
     required double latitude,
     required double longitude,
     this.accuracyM = const Value.absent(),
+    this.hash = const Value.absent(),
     this.createdAt = const Value.absent(),
   })  : tripId = Value(tripId),
         userId = Value(userId),
@@ -934,6 +964,7 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
     Expression<double>? latitude,
     Expression<double>? longitude,
     Expression<double>? accuracyM,
+    Expression<String>? hash,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
@@ -946,6 +977,7 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (accuracyM != null) 'accuracy_m': accuracyM,
+      if (hash != null) 'hash': hash,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
@@ -960,6 +992,7 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
       Value<double>? latitude,
       Value<double>? longitude,
       Value<double?>? accuracyM,
+      Value<String?>? hash,
       Value<DateTime>? createdAt}) {
     return LocalSpeedRecordsCompanion(
       id: id ?? this.id,
@@ -971,6 +1004,7 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       accuracyM: accuracyM ?? this.accuracyM,
+      hash: hash ?? this.hash,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -1005,6 +1039,9 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
     if (accuracyM.present) {
       map['accuracy_m'] = Variable<double>(accuracyM.value);
     }
+    if (hash.present) {
+      map['hash'] = Variable<String>(hash.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1023,6 +1060,7 @@ class LocalSpeedRecordsCompanion extends UpdateCompanion<LocalSpeedRecord> {
           ..write('latitude: $latitude, ')
           ..write('longitude: $longitude, ')
           ..write('accuracyM: $accuracyM, ')
+          ..write('hash: $hash, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -1645,6 +1683,7 @@ typedef $$LocalSpeedRecordsTableCreateCompanionBuilder
   required double latitude,
   required double longitude,
   Value<double?> accuracyM,
+  Value<String?> hash,
   Value<DateTime> createdAt,
 });
 typedef $$LocalSpeedRecordsTableUpdateCompanionBuilder
@@ -1658,6 +1697,7 @@ typedef $$LocalSpeedRecordsTableUpdateCompanionBuilder
   Value<double> latitude,
   Value<double> longitude,
   Value<double?> accuracyM,
+  Value<String?> hash,
   Value<DateTime> createdAt,
 });
 
@@ -1696,6 +1736,9 @@ class $$LocalSpeedRecordsTableFilterComposer
 
   ColumnFilters<double> get accuracyM => $composableBuilder(
       column: $table.accuracyM, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get hash => $composableBuilder(
+      column: $table.hash, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -1737,6 +1780,9 @@ class $$LocalSpeedRecordsTableOrderingComposer
   ColumnOrderings<double> get accuracyM => $composableBuilder(
       column: $table.accuracyM, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get hash => $composableBuilder(
+      column: $table.hash, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 }
@@ -1776,6 +1822,9 @@ class $$LocalSpeedRecordsTableAnnotationComposer
 
   GeneratedColumn<double> get accuracyM =>
       $composableBuilder(column: $table.accuracyM, builder: (column) => column);
+
+  GeneratedColumn<String> get hash =>
+      $composableBuilder(column: $table.hash, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -1818,6 +1867,7 @@ class $$LocalSpeedRecordsTableTableManager extends RootTableManager<
             Value<double> latitude = const Value.absent(),
             Value<double> longitude = const Value.absent(),
             Value<double?> accuracyM = const Value.absent(),
+            Value<String?> hash = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
               LocalSpeedRecordsCompanion(
@@ -1830,6 +1880,7 @@ class $$LocalSpeedRecordsTableTableManager extends RootTableManager<
             latitude: latitude,
             longitude: longitude,
             accuracyM: accuracyM,
+            hash: hash,
             createdAt: createdAt,
           ),
           createCompanionCallback: ({
@@ -1842,6 +1893,7 @@ class $$LocalSpeedRecordsTableTableManager extends RootTableManager<
             required double latitude,
             required double longitude,
             Value<double?> accuracyM = const Value.absent(),
+            Value<String?> hash = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
           }) =>
               LocalSpeedRecordsCompanion.insert(
@@ -1854,6 +1906,7 @@ class $$LocalSpeedRecordsTableTableManager extends RootTableManager<
             latitude: latitude,
             longitude: longitude,
             accuracyM: accuracyM,
+            hash: hash,
             createdAt: createdAt,
           ),
           withReferenceMapper: (p0) => p0

@@ -31,6 +31,8 @@ class LocalSpeedRecords extends Table {
   RealColumn get latitude => real()();
   RealColumn get longitude => real()();
   RealColumn get accuracyM => real().nullable()();
+  /// SHA-256 de integridade — adicionado na migração v2.
+  TextColumn get hash => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -59,7 +61,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openDatabase());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  /// Migrações incrementais:
+  ///  v1 → v2: adiciona coluna `hash` à tabela local_speed_records
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(localSpeedRecords, localSpeedRecords.hash);
+          }
+        },
+      );
 
   static QueryExecutor _openDatabase() {
     return driftDatabase(name: 'tracking_velocidade.db');

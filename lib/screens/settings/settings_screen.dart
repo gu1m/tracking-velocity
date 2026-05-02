@@ -216,7 +216,9 @@ class SettingsScreen extends StatelessWidget {
       return;
     }
     try {
-      await ExportService().exportTrips(trips);
+      // Obtém o Firebase ID Token para assinar o relatório no backend.
+      final token = await context.read<AuthService>().getIdToken();
+      await ExportService().exportTrips(trips, firebaseToken: token);
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

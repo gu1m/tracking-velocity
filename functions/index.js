@@ -7,8 +7,9 @@ const express = require('express');
 const cors = require('cors');
 
 const billingRouter = require('./src/billing');
-const usersRouter  = require('./src/users');
-const tripsRouter  = require('./src/trips');
+const usersRouter   = require('./src/users');
+const tripsRouter   = require('./src/trips');
+const reportsRouter = require('./src/reports');
 
 const app = express();
 app.use(cors());
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use('/billing', billingRouter);
 app.use('/users',   usersRouter);
 app.use('/trips',   tripsRouter);
+app.use('/reports', reportsRouter);
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 

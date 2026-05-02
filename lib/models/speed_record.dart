@@ -2,6 +2,10 @@
 ///
 /// O app salva a velocidade média por minuto quando o usuário está acima
 /// de 10 km/h. Essa é a unidade básica que vai compor uma viagem (Trip).
+///
+/// Desde a Fase 1 cada registro carrega um hash SHA-256 calculado com:
+///   SHA256(tripId|timestamp|lat|lon|speedKmh|maxSpeedKmh|accuracy)
+/// O hash garante integridade: qualquer alteração em um campo invalida o hash.
 class SpeedRecord {
   final int? id;
   final String tripId;
@@ -10,8 +14,9 @@ class SpeedRecord {
   final double maxSpeedKmh;    // Pico no minuto
   final double latitude;
   final double longitude;
-  final double accuracy;       // precisão do GPS em metros
-  final String? address;       // endereço reverso (preenchido sob demanda)
+  final double accuracy;       // Precisão do GPS em metros
+  final String? address;       // Endereço reverso (preenchido sob demanda)
+  final String? hash;          // SHA-256 de integridade (Fase 1)
 
   const SpeedRecord({
     this.id,
@@ -23,6 +28,7 @@ class SpeedRecord {
     required this.longitude,
     required this.accuracy,
     this.address,
+    this.hash,
   });
 
   Map<String, dynamic> toMap() => {
@@ -35,6 +41,7 @@ class SpeedRecord {
         'longitude': longitude,
         'accuracy': accuracy,
         'address': address,
+        'hash': hash,
       };
 
   factory SpeedRecord.fromMap(Map<String, dynamic> map) => SpeedRecord(
@@ -47,5 +54,6 @@ class SpeedRecord {
         longitude: (map['longitude'] as num).toDouble(),
         accuracy: (map['accuracy'] as num).toDouble(),
         address: map['address'] as String?,
+        hash: map['hash'] as String?,
       );
 }

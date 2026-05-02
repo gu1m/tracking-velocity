@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:ntp/ntp.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/feature_flags.dart';
 import '../models/app_user.dart';
 import '../models/speed_record.dart';
+import '../utils/hash_utils.dart';
 
 /// Gerencia o tracking de velocidade via GPS.
 ///
@@ -88,6 +90,7 @@ class LocationService extends ChangeNotifier {
 
   bool get isServiceRunning => _isServiceRunning;
   bool get isTrackingActive => _isTrackingActive;
+  bool get ntpSynced => _ntpSynced;
   double get currentSpeedKmh => _currentSpeedKmh;
 
   /// Retorna coordenadas formatadas enquanto não houver geocodificação reversa.
@@ -114,6 +117,32 @@ class LocationService extends ChangeNotifier {
   DateTime? get tripStartedAt => _tripStartedAt;
   double get tripMaxSpeed => _tripMaxSpeed;
   double get tripTotalDistanceKm => _tripTotalDistanceKm;
+
+  // ── NTP (horário oficial) ────────────────────────────────────────────────
+  /// Offset entre o relógio do dispositivo e o servidor NTP (em ms).
+  /// Positivo = dispositivo adiantado; negativo = atrasado.
+  Duration _ntpOffset = Duration.zero;
+  bool _ntpSynced = false;
+
+  /// Sincroniza o offset NTP de forma assíncrona (fire-and-forget).
+  /// Chamado ao iniciar a viagem e ao ligar o serviço.
+  Future<void> _syncNtpOffset() async {
+    try {
+      final offsetMs = await NTP.getNtpOffset(
+        localTime: DateTime.now(),
+        lookUpAddress: 'a.ntp.br',   // servidor NTP oficial BR
+      ).timeout(const Duration(seconds: 8));
+      _ntpOffset = Duration(milliseconds: offsetMs);
+      _ntpSynced = true;
+      debugPrint('[LocationService] NTP synced — offset: ${offsetMs}ms');
+    } catch (e) {
+      debugPrint('[LocationService] NTP sync falhou: $e — usando relógio local.');
+    }
+  }
+
+  /// Aplica o offset NTP a um DateTime do dispositivo.
+  DateTime _toNtpTime(DateTime deviceTime) =>
+      deviceTime.add(_ntpOffset).toUtc();
 
   // ── Agregação por minuto ─────────────────────────────────────────────────
   final List<double> _minuteSpeeds = [];
@@ -183,6 +212,9 @@ class LocationService extends ChangeNotifier {
     _isServiceRunning = true;
     _sessionStartedAt = DateTime.now();
     notifyListeners();
+
+    // Sincroniza NTP em background (não bloqueia a UI).
+    _syncNtpOffset().ignore();
   }
 
   /// Pausa o serviço (ex: usuário desativa nas configurações).
@@ -278,14 +310,29 @@ class LocationService extends ChangeNotifier {
     final avgSpeed =
         _minuteSpeeds.reduce((a, b) => a + b) / _minuteSpeeds.length;
 
+    // Aplica offset NTP ao timestamp do início do minuto.
+    final ntpTimestamp = _toNtpTime(_minuteStart!);
+
+    // Calcula hash SHA-256 de integridade do registro.
+    final hash = HashUtils.computeRecordHash(
+      tripId: _activeTripId!,
+      timestamp: ntpTimestamp,
+      latitude: lat,
+      longitude: lon,
+      speedKmh: avgSpeed,
+      maxSpeedKmh: _minuteMaxSpeed,
+      accuracy: accuracy,
+    );
+
     _recordCtrl.add(SpeedRecord(
       tripId: _activeTripId!,
-      timestamp: _minuteStart!,
+      timestamp: ntpTimestamp,
       speedKmh: avgSpeed,
       maxSpeedKmh: _minuteMaxSpeed,
       latitude: lat,
       longitude: lon,
       accuracy: accuracy,
+      hash: hash,
     ));
 
     _todayActiveTime += minuteWindow;

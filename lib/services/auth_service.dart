@@ -234,6 +234,16 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── Token ─────────────────────────────────────────────────────────────────
+
+  /// Retorna o Firebase ID Token do usuário atual (renovado se expirado).
+  /// Retorna null se não há usuário autenticado.
+  Future<String?> getIdToken() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    return user.getIdToken();
+  }
+
   // ── Logout ────────────────────────────────────────────────────────────────
 
   Future<void> signOut() async {

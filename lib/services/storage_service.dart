@@ -11,6 +11,7 @@ import '../database/app_database.dart';
 import '../models/app_user.dart';
 import '../models/speed_record.dart';
 import '../models/trip.dart';
+import '../utils/hash_utils.dart';
 
 /// Persistência local (Drift/SQLite) + sincronização com backend Railway.
 ///
@@ -176,6 +177,7 @@ class StorageService extends ChangeNotifier {
               latitude: Value(r.latitude),
               longitude: Value(r.longitude),
               accuracyM: Value(r.accuracy),
+              hash: Value(r.hash),
             ))
         .toList();
 
@@ -293,15 +295,27 @@ class StorageService extends ChangeNotifier {
       lat += route.dLat + (m % 2 == 0 ? 0.00005 : -0.00003);
       lon += route.dLon + (m % 3 == 0 ? 0.00004 : -0.00002);
 
+      final recordTs = start.add(Duration(minutes: m));
+      final recordHash = HashUtils.computeRecordHash(
+        tripId: tripId,
+        timestamp: recordTs.toUtc(),
+        latitude: lat,
+        longitude: lon,
+        speedKmh: speed,
+        maxSpeedKmh: maxSpeedMin,
+        accuracy: 5.0,
+      );
+
       records.add(LocalSpeedRecordsCompanion(
         tripId: Value(tripId),
         userId: Value(uid),
-        recordedAt: Value(start.add(Duration(minutes: m))),
+        recordedAt: Value(recordTs),
         speedKmh: Value(speed),
         maxSpeedKmh: Value(maxSpeedMin),
         latitude: Value(lat),
         longitude: Value(lon),
         accuracyM: const Value(5.0),
+        hash: Value(recordHash),
       ));
     }
 
@@ -432,6 +446,7 @@ class StorageService extends ChangeNotifier {
         latitude: row.latitude,
         longitude: row.longitude,
         accuracy: row.accuracyM ?? 0,
+        hash: row.hash,
       );
 
   @override

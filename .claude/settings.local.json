@@ -9,7 +9,21 @@
       "PowerShell(npm --version)",
       "PowerShell(npx firebase --version 2>&1)",
       "PowerShell(npx flutterfire --version 2>&1)",
-      "PowerShell(cd \"C:\\\\Users\\\\gguim\\\\Desktop\\\\tracking_velocity\\\\Aplicativo Tracking Velocidade\\\\functions\" ; $env:RAILWAY_TOKEN = \"7a6619f3-6d7c-4d5e-ad0b-785a4b145020\" ; $env:RAILWAY_TOKEN)"
+      "PowerShell(cd \"C:\\\\Users\\\\gguim\\\\Desktop\\\\tracking_velocity\\\\Aplicativo Tracking Velocidade\\\\functions\" ; $env:RAILWAY_TOKEN = \"7a6619f3-6d7c-4d5e-ad0b-785a4b145020\" ; $env:RAILWAY_TOKEN)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(curl -v https://tracking-velocidade-production.up.railway.app/health)",
+      "Bash(curl -s https://tracking-velocidade-production.up.railway.app/health)",
+      "Bash(curl -v http://tracking-velocidade-production.up.railway.app/health)",
+      "Bash(curl -s -w \"\\\\nStatus: %{http_code}\\\\n\" https://tracking-velocidade-production.up.railway.app/health)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "PowerShell(keytool -list -v -keystore \"$env:USERPROFILE\\\\.android\\\\debug.keystore\" -alias androiddebugkey -storepass android -keypass android 2>&1 | Select-String \"SHA1\")",
+      "Bash(\"/c/Program Files/Android/Android Studio/jbr/bin/keytool.exe\" -list -v -keystore \"/c/Users/gguim/.android/debug.keystore\" -alias androiddebugkey -storepass android -keypass android)",
+      "Bash(grep -n 'class \\\\|extends \\\\|_$AppDatabase\\\\|schemaVersion\\\\|SyncQueue\\\\|LocalSpeedRecord\\\\|LocalTrip' '/c/Users/gguim/Desktop/tracking_velocity/Aplicativo Tracking Velocidade/lib/database/app_database.g.dart')",
+      "Bash(grep -n '_$AppDatabase\\\\|SyncQueueData\\\\|SyncQueueCompanion\\\\|class.*Database' '/c/Users/gguim/Desktop/tracking_velocity/Aplicativo Tracking Velocidade/lib/database/app_database.g.dart')",
+      "Bash(grep -n 'abstract class _$AppDatabase\\\\|class _$AppDatabase\\\\|Managers\\\\|get localTrips\\\\|get localSpeedRecords\\\\|get syncQueue' '/c/Users/gguim/Desktop/tracking_velocity/Aplicativo Tracking Velocidade/lib/database/app_database.g.dart')",
+      "Bash(grep -n 'get localTrips\\\\|get localSpeedRecords\\\\|get syncQueue\\\\|$localTrips\\\\|$localSpeedRecords\\\\|$syncQueue\\\\|late final.*localTrips' '/c/Users/gguim/Desktop/tracking_velocity/Aplicativo Tracking Velocidade/lib/database/app_database.g.dart')"
     ]
   }
 }

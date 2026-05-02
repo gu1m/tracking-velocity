@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../models/speed_record.dart';
+import '../../services/auth_service.dart';
 import '../../services/export_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
@@ -58,7 +59,12 @@ class _DailyMapScreenState extends State<DailyMapScreen> {
     if (_records.isEmpty) return;
     setState(() => _exporting = true);
     try {
-      await ExportService().exportDailyRecords(_selectedDate, _records);
+      final token = await context.read<AuthService>().getIdToken();
+      await ExportService().exportDailyRecords(
+        _selectedDate,
+        _records,
+        firebaseToken: token,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Relatório diário gerado com sucesso!')),

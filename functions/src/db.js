@@ -183,6 +183,50 @@ async function insertSpeedRecords(records) {
   if (error) throw new Error(`insertSpeedRecords: ${error.message}`);
 }
 
+// ── Report signatures (Fase 1) ────────────────────────────────────────────────
+
+/**
+ * Salva os metadados e a assinatura digital de um relatório exportado.
+ */
+async function storeReportSignature({
+  reportId,
+  userId,
+  tripIds,
+  recordCount,
+  recordHashes,
+  canonical,
+  signature,
+  generatedAt,
+}) {
+  const { error } = await supabase.from('report_signatures').insert({
+    id: reportId,
+    user_id: userId,
+    trip_ids: tripIds,
+    record_count: recordCount,
+    record_hashes: recordHashes,
+    canonical,
+    signature,
+    generated_at: generatedAt,
+  });
+
+  if (error) throw new Error(`storeReportSignature: ${error.message}`);
+}
+
+/**
+ * Busca os dados de verificação de um relatório pelo ID.
+ * Retorna null se não encontrado.
+ */
+async function getReportSignature(reportId) {
+  const { data, error } = await supabase
+    .from('report_signatures')
+    .select('id, user_id, trip_ids, record_count, canonical, signature, generated_at')
+    .eq('id', reportId)
+    .maybeSingle();
+
+  if (error) throw new Error(`getReportSignature: ${error.message}`);
+  return data;
+}
+
 module.exports = {
   getOrCreateUser,
   getUserByEmail,
@@ -194,4 +238,6 @@ module.exports = {
   getTripWithRecords,
   deleteTrip,
   insertSpeedRecords,
+  storeReportSignature,
+  getReportSignature,
 };
